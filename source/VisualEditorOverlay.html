@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $, ve ) {
+	var EditorOverlayBase = M.require( &#39;modules/editor/EditorOverlayBase&#39; ),
+		settings = M.require( &#39;settings&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		VisualEditorOverlay;
+
+<span id='VisualEditorOverlay'>	/**
+</span>	 * Overlay for VisualEditor view
+	 * @class VisualEditorOverlay
+	 * @extends EditorOverlayBase
+	 */
+	VisualEditorOverlay = EditorOverlayBase.extend( {
+<span id='VisualEditorOverlay-property-templatePartials'>		/** @inheritdoc **/
+</span>		templatePartials: $.extend( {}, EditorOverlayBase.prototype.templatePartials, {
+			content: mw.template.get( &#39;mobile.editor.ve&#39;, &#39;contentVE.hogan&#39; )
+		} ),
+<span id='VisualEditorOverlay-property-className'>		/** @inheritdoc **/
+</span>		className: &#39;overlay editor-overlay editor-overlay-ve&#39;,
+		editor: &#39;VisualEditor&#39;,
+		events: $.extend( {}, EditorOverlayBase.prototype.events, {
+			&#39;click .source-editor&#39;: &#39;onClickSourceEditor&#39;
+		} ),
+<span id='VisualEditorOverlay-method-applyHeaderOptions'>		/**
+</span>		 * Set options that apply specifically to VisualEditorOverlay but not
+		 * EditorOverlay so that an EditorOverlay instance can be created effortlessly.
+		 * FIXME: Must be smarter way to do this.
+		 * @method
+		 * @param {Object} options
+		 * @param {Boolean} isVE whether the options are being generated for a VisualEditorOverlay
+		 *  or a EditorOverlay
+		 */
+		applyHeaderOptions: function ( options, isVE ) {
+			// Set things that are known to be true.
+			options.hasToolbar = isVE;
+			options.editSwitcher = isVE;
+			options.isVisualEditor = isVE;
+		},
+<span id='VisualEditorOverlay-method-initialize'>		/** @inheritdoc **/
+</span>		initialize: function ( options ) {
+			var self = this;
+			this.applyHeaderOptions( options, true );
+			options.previewingMsg = mw.msg( &#39;mobile-frontend-page-edit-summary&#39;, options.title );
+			options.editingMsg = mw.msg( &#39;mobile-frontend-editor-editing&#39; );
+			EditorOverlayBase.prototype.initialize.apply( this, arguments );
+			this._hasChanged = false;
+			// force editor preview step for VE
+			this.config = $.extend( this.config, {
+				skipPreview: false
+			} );
+			this.$continueBtn = self.$( &#39;.continue&#39; ).prop( &#39;disabled&#39;, true );
+			this.initializeSwitcher();
+			// FIXME: This should be done by manipulating className
+			this.$el.removeClass( &#39;view-border-box&#39; );
+		},
+<span id='VisualEditorOverlay-method-destroyTarget'>		/**
+</span>		 * Destroy the existing VisualEditor target.
+		 * @method
+		 */
+		destroyTarget: function () {
+			if ( this.target ) {
+				this.target.destroy();
+				this.target = null;
+				this.docToSave = null;
+			}
+		},
+<span id='VisualEditorOverlay-method-show'>		/** @inheritdoc **/
+</span>		show: function () {
+			EditorOverlayBase.prototype.show.apply( this, arguments );
+			if ( this.target === undefined ) {
+				// FIXME: we have to initialize MobileViewTarget after this.$el
+				// is attached to DOM, maybe we should attach it earlier and hide
+				// overlays in a different way?
+				this.target = new ve.init.mw.MobileViewTarget( {
+					// || undefined so that scrolling is not triggered for the lead (0) section
+					// (which has no header to scroll to)
+					section: this.options.sectionId || undefined,
+					isIos: this.isIos
+				} );
+				this.$( &#39;.surface&#39; ).append( this.target.$element );
+				this.target.activating = true;
+				this.target.load();
+				this.target.connect( this, {
+					save: &#39;onSaveComplete&#39;,
+					saveAsyncBegin: &#39;showSpinner&#39;,
+					saveAsyncComplete: &#39;clearSpinner&#39;,
+					saveErrorEmpty: &#39;onSaveError&#39;,
+					// FIXME: Expand on save errors by having a method for each
+					saveErrorSpamBlacklist: &#39;onSaveError&#39;,
+					saveErrorAbuseFilter: &#39;onSaveError&#39;,
+					saveErrorBlocked: &#39;onSaveError&#39;,
+					saveErrorNewUser: &#39;onSaveError&#39;,
+					saveErrorCaptcha: &#39;onSaveErrorCaptcha&#39;,
+					saveErrorUnknown: &#39;onSaveError&#39;,
+					surfaceReady: &#39;onSurfaceReady&#39;,
+					loadError: &#39;onLoadError&#39;,
+					conflictError: &#39;onConflictError&#39;,
+					showChangesError: &#39;onShowChangesError&#39;,
+					serializeError: &#39;onSerializeError&#39;
+				} );
+			}
+		},
+<span id='VisualEditorOverlay-method-hide'>		/** @inheritdoc **/
+</span>		hide: function () {
+			var retval = EditorOverlayBase.prototype.hide.apply( this, arguments );
+			if ( retval ) {
+				this.destroyTarget();
+			}
+			return retval;
+		},
+<span id='VisualEditorOverlay-method-postRender'>		/** @inheritdoc **/
+</span>		postRender: function () {
+			this.$( &#39;.surface&#39; ).hide();
+			EditorOverlayBase.prototype.postRender.apply( this, arguments );
+		},
+<span id='VisualEditorOverlay-method-onClickBack'>		/**
+</span>		 * @inheritdoc
+		 */
+		onClickBack: function () {
+			EditorOverlayBase.prototype.onClickBack.apply( this, arguments );
+			this.switchToEditor();
+		},
+<span id='VisualEditorOverlay-method-onClickSourceEditor'>		/**
+</span>		 * Source Editor click handler
+		 */
+		onClickSourceEditor: function () {
+			// If changes have been made tell the user they have to save first
+			if ( !this.hasChanged() ) {
+				this.switchToSourceEditor( this.options );
+			} else {
+				if ( window.confirm( mw.msg( &#39;mobile-frontend-editor-switch-confirm&#39; ) ) ) {
+					this.onStageChanges();
+				}
+			}
+		},
+<span id='VisualEditorOverlay-method-switchToEditor'>		/**
+</span>		 * Reveal the editing interface.
+		 * @method
+		 */
+		switchToEditor: function () {
+			// FIXME: Don&#39;t call a private method that is outside the class.
+			this._showHidden( &#39;.initial-header&#39; );
+			this.$( &#39;.surface&#39; ).show();
+			this.docToSave = false;
+		},
+<span id='VisualEditorOverlay-method-onStageChanges'>		/**
+</span>		 * Disables the VE editor interface in preparation for saving.
+		 * @inheritdoc
+		 */
+		onStageChanges: function () {
+			// need to blur contenteditable to be sure that keyboard is properly closed
+			this.$( &#39;[contenteditable]&#39; ).blur();
+			this.$( &#39;.surface&#39; ).hide();
+			EditorOverlayBase.prototype.onStageChanges.apply( this, arguments );
+		},
+<span id='VisualEditorOverlay-method-onSaveBegin'>		/** @inheritdoc **/
+</span>		onSaveBegin: function () {
+			var
+				self = this,
+				doc = this.target.surface.getModel().getDocument(),
+				summary = this.$( &#39;.save-panel .summary&#39; ).val(),
+				options = {
+					summary: summary
+				};
+
+			EditorOverlayBase.prototype.onSaveBegin.apply( this, arguments );
+			if ( this.confirmAborted ) {
+				return;
+			}
+			// FIXME: Don&#39;t call a private method that is outside the class.
+			this._showHidden( &#39;.saving-header&#39; );
+			// Stop the confirmation message from being thrown when you hit save.
+			this._hasChanged = false;
+			this.$( &#39;.surface, .summary-area&#39; ).hide();
+			if ( this.captchaId ) {
+				// Intentional Lcase ve save api properties
+				options.captchaid = this.captchaId;
+				options.captchaword = this.$( &#39;.captcha-word&#39; ).val();
+			}
+
+			// Preload the serialization
+			if ( !this.docToSave ) {
+				this.docToSave = ve.dm.converter.getDomFromModel( doc );
+			}
+			this.target.prepareCacheKey( this.docToSave ).done( function () {
+				self.target.save( self.docToSave, options );
+			} );
+		},
+<span id='VisualEditorOverlay-method-switchToSourceEditor'>		/**
+</span>		 * Loads an {EditorOverlay} and replaces the existing {VisualEditorOverlay}
+		 * @method
+		 * @param {Object} options to pass to new EditorOverlay
+		 */
+		switchToSourceEditor: function ( options ) {
+			var self = this;
+			this.log( &#39;switch&#39; );
+			// Save a user setting indicating that this user prefers using the SourceEditor
+			settings.save( &#39;preferredEditor&#39;, &#39;SourceEditor&#39;, true );
+			this.showSpinner();
+			this.$( &#39;.surface&#39; ).hide();
+			// Load the SourceEditor and replace the VisualEditor overlay with it
+			mw.loader.using( &#39;mobile.editor.overlay&#39;, function () {
+				var EditorOverlay = M.require( &#39;modules/editor/EditorOverlay&#39; );
+
+				self.clearSpinner();
+				self.applyHeaderOptions( options, false );
+				overlayManager.replaceCurrent( new EditorOverlay( options ) );
+			} );
+		},
+<span id='VisualEditorOverlay-method-onSaveComplete'>		/** @inheritdoc **/
+</span>		onSaveComplete: function () {
+			EditorOverlayBase.prototype.onSaveComplete.apply( this, arguments );
+			this.clearSpinner();
+			this.destroyTarget();
+		},
+<span id='VisualEditorOverlay-method-onSurfaceReady'>		/**
+</span>		 * Event handler.
+		 * @method
+		 */
+		onSurfaceReady: function () {
+			this.clearSpinner();
+			this.$( &#39;.surface&#39; ).show();
+			this.target.getSurface().getModel().getDocument().connect( this, {
+				transact: &#39;onTransact&#39;
+			} );
+			this.target.getSurface().$element.addClass( &#39;content&#39; );
+
+			// we have to do it here because contenteditable elements still do not
+			// exist when postRender is executed
+			// FIXME: Don&#39;t call a private method that is outside the class.
+			this._fixIosHeader( &#39;[contenteditable]&#39; );
+		},
+<span id='VisualEditorOverlay-method-onTransact'>		/**
+</span>		 * Event handler.
+		 * @method
+		 */
+		onTransact: function () {
+			this._hasChanged = true;
+			this.$continueBtn.prop( &#39;disabled&#39;, false );
+		},
+<span id='VisualEditorOverlay-method-onLoadError'>		/**
+</span>		 * Event handler.
+		 * @method
+		 */
+		onLoadError: function () {
+			this.reportError( mw.msg( &#39;mobile-frontend-editor-error-loading&#39; ), &#39;ve-load-error&#39; );
+		},
+<span id='VisualEditorOverlay-method-onSerializeError'>		/**
+</span>		 * Event handler.
+		 * @method
+		 * @param {jqXHR} jqXHR
+		 * @param {String} status
+		 */
+		onSerializeError: function ( jqXHR, status ) {
+			this.reportError( mw.msg( &#39;visualeditor-serializeerror&#39;, status ), &#39;ve-serialize-error&#39; );
+		},
+<span id='VisualEditorOverlay-method-onConflictError'>		/**
+</span>		 * Event handler.
+		 * @method
+		 */
+		onConflictError: function () {
+			this.reportError( mw.msg( &#39;mobile-frontend-editor-error-conflict&#39; ), &#39;ve-conflict-error&#39; );
+		},
+<span id='VisualEditorOverlay-method-onShowChangesError'>		/**
+</span>		 * Event handler.
+		 * @method
+		 */
+		onShowChangesError: function () {
+			this.reportError( mw.msg( &#39;visualeditor-differror&#39; ), &#39;ve-show-changes-error&#39; );
+		},
+<span id='VisualEditorOverlay-method-onSaveError'>		/**
+</span>		 * Event handler.
+		 * @method
+		 */
+		onSaveError: function () {
+			this.reportError( mw.msg( &#39;mobile-frontend-editor-error&#39; ), &#39;ve-save-error&#39; );
+		},
+<span id='VisualEditorOverlay-method-onSaveErrorCaptcha'>		/**
+</span>		 * Event handler.
+		 * @method
+		 * @param {Object} editApi response from api
+		 */
+		onSaveErrorCaptcha: function ( editApi ) {
+			this.captchaId = editApi.captcha.id;
+			// FIXME: Don&#39;t call a private method that is outside the class.
+			this._showCaptcha( editApi.captcha.url );
+		},
+<span id='VisualEditorOverlay-method-hasChanged'>		/** @inheritdoc **/
+</span>		hasChanged: function () {
+			return this._hasChanged;
+		}
+	} );
+
+	M.define( &#39;modules/editor/VisualEditorOverlay&#39;, VisualEditorOverlay );
+
+}( mw.mobileFrontend, jQuery, window.ve ) );
+</pre>
+</body>
+</html>

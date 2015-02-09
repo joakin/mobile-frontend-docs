@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var View = M.require( &#39;View&#39; ),
+		PageList,
+		browser = M.require( &#39;browser&#39; ),
+		Watchstar = M.require( &#39;modules/watchstar/Watchstar&#39; ),
+		WatchstarApi = M.require( &#39;modules/watchstar/WatchstarApi&#39; ),
+		user = M.require( &#39;user&#39; ),
+		Page = M.require( &#39;Page&#39; );
+
+<span id='PageList'>	/**
+</span>	 * List of items page view
+	 * @class PageList
+	 * @uses Page
+	 * @uses WatchstarApi
+	 * @uses Watchstar
+	 * @extends View
+	 */
+	PageList = View.extend( {
+<span id='PageList-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {Array} defaults.pages Array of page objects returned from the server.
+		 * E.g. [
+		 *   {
+		 *     heading: &quot;&lt;strong&gt;C&lt;/strong&gt;laude Monet&quot;,
+		 *     id: undefined,
+		 *     listThumbStyleAttribute: &quot;background-image: url(http://127.0.0.1:8080/images/thumb/thumb.jpg)&quot;,
+		 *     pageimageClass: &quot;list-thumb-y&quot;,
+		 *     title: &quot;Claude Monet&quot;,
+		 *     url: &quot;/wiki/Claude_Monet&quot;,
+		 *     thumbnail: {
+		 *       height: 62,
+		 *       source: &quot;http://127.0.0.1:8080/images/thumb/thumb.jpg&quot;,
+		 *       width: 80
+		 *     }
+		 *   }
+		 * ]
+		 * @cfg {Boolean} defaults.enhance Whether to enhance views already in DOM.
+		 * When enabled, the template is disabled so that it is not rendered in the DOM.
+		 * Use in conjunction with View::defaults.$el to associate the PageList with an existing
+		 * already rendered element in the DOM.
+		 */
+		defaults: {
+			pages: [],
+			enhance: false
+		},
+<span id='PageList-method-renderPageImages'>		/**
+</span>		 * Render page images for the existing page list. Assumes no page images have been loaded.
+		 * Only load when wgImagesDisabled has not been activated via Special:MobileOptions.
+		 *
+		 * @method
+		 */
+		renderPageImages: function () {
+			var self = this,
+				pages = {},
+				$ul = this.$( &#39;.page-list&#39; ),
+				delay = browser.isWideScreen() ? 0 : 1000;
+
+			if ( !mw.config.get( &#39;wgImagesDisabled&#39; ) ) {
+				window.setTimeout( function () {
+					$.each( self.options.pages, function ( i, page ) {
+						var thumb;
+						if ( page.thumbnail ) {
+							thumb = page.thumbnail;
+							page.listThumbStyleAttribute = &#39;background-image: url(&#39; + thumb.source + &#39;)&#39;;
+							page.pageimageClass = thumb.width &gt; thumb.height ? &#39;list-thumb-y&#39; : &#39;list-thumb-x&#39;;
+						} else {
+							page.pageimageClass = &#39;list-thumb-none list-thumb-x&#39;;
+						}
+						pages[page.title] = page;
+					} );
+
+					// Render page images
+					$ul.find( &#39;li&#39; ).each( function () {
+						var $li = $( this ),
+							title = $li.attr( &#39;title&#39; ),
+							page = pages[title];
+
+						if ( page ) {
+							$li.find( &#39;.list-thumb&#39; ).addClass( page.pageimageClass )
+								.attr( &#39;style&#39;, page.listThumbStyleAttribute );
+						}
+					} );
+				}, delay );
+			}
+		},
+<span id='PageList-method-initialize'>		/**
+</span>		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			// FIXME: Find more elegant standard way to allow enhancement of views already in DOM
+			if ( options.enhance ) {
+				this.template = false;
+			}
+
+			this.api = new WatchstarApi( options );
+			View.prototype.initialize.apply( this, arguments );
+		},
+<span id='PageList-property-template'>		/**
+</span>		 * @inheritdoc
+		 */
+		template: mw.template.get( &#39;mobile.pagelist.scripts&#39;, &#39;PageList.hogan&#39; ),
+		templatePartials: {
+			item: mw.template.get( &#39;mobile.pagelist.scripts&#39;, &#39;PageListItem.hogan&#39; )
+		},
+<span id='PageList-method-getPages'>		/**
+</span>		 * Retrieve pages
+		 *
+		 * @method
+		 * @param {Array} ids a list of page ids
+		 * @return {jQuery.Deferred}
+		 */
+		getPages: function ( ids ) {
+			return this.api.load( ids );
+		},
+<span id='PageList-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 * Loads watch stars for each page.
+		 */
+		postRender: function () {
+			var $li,
+				self = this,
+				pages = [],
+				api = this.api;
+
+			View.prototype.postRender.apply( this, arguments );
+
+			// Get the items that haven&#39;t been initialized
+			$li = this.$( &#39;li:not(.with-watchstar)&#39; );
+
+			// Check what we have in the page list
+			$li.each( function () {
+				pages.push( $( this ).data( &#39;id&#39; ) );
+			} );
+
+			// Create watch stars for each entry in list
+			if ( !user.isAnon() &amp;&amp; pages.length &gt; 0 ) {
+				self.getPages( pages ).done( function () {
+					$li.each( function () {
+						var watchstar,
+							page = new Page( {
+								// FIXME: Set sections so we don&#39;t hit the api (hacky)
+								sections: [],
+								title: $( this ).attr( &#39;title&#39; ),
+								id: $( this ).data( &#39;id&#39; )
+							} );
+
+						watchstar = new Watchstar( {
+							isAnon: false,
+							isWatched: api.isWatchedPage( page ),
+							page: page,
+							el: $( &#39;&lt;div&gt;&#39; ).appendTo( this )
+						} );
+
+						$( this ).addClass( &#39;with-watchstar&#39; );
+
+<span id='PageList-event-watch'>						/**
+</span>						 * @event watch
+						 * Fired when an article in the PageList is watched.
+						 */
+						watchstar.on( &#39;watch&#39;, $.proxy( self, &#39;emit&#39;, &#39;watch&#39; ) );
+<span id='PageList-event-unwatch'>						/**
+</span>						 * @event unwatch
+						 * Fired when an article in the PageList is watched.
+						 */
+						watchstar.on( &#39;unwatch&#39;, $.proxy( self, &#39;emit&#39;, &#39;unwatch&#39; ) );
+					} );
+				} );
+			}
+		}
+	} );
+
+	M.define( &#39;modules/PageList&#39;, PageList );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

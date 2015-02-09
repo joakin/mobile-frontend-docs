@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var settings = M.require( &#39;settings&#39; ),
+		mainMenu = M.require( &#39;skin&#39; ).getMainMenu(),
+		userFontSize = settings.get( &#39;userFontSize&#39;, true ),
+		FontChanger = M.require( &#39;modules/fontchanger/FontChanger&#39; ),
+		MobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		uiSchema = new MobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; );
+
+	// set the user font size if needed
+	if ( userFontSize !== &#39;100&#39; ) {
+		$( &#39;.content&#39; ).css( &#39;font-size&#39;, userFontSize + &#39;%&#39; );
+	}
+
+	// show and add handler to fontchanger link in Special:MobileMenu
+	$( &#39;.fontchanger.link&#39; )
+		.removeClass( &#39;hidden&#39; )
+		.on( &#39;click&#39;, function () {
+			// the different sizes
+			var fcDrawer = new FontChanger( {} );
+
+			// close the main menu drawer
+			mainMenu.closeNavigationDrawers();
+
+			// show the fontchanger drawer
+			fcDrawer.show();
+			uiSchema.log( {
+				name: &#39;fontchanger-menu&#39;
+			} );
+		} );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

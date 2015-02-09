@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var watchlist,
+		WatchList = M.require( &#39;modules/watchlist/WatchList&#39; ),
+		SchemaMobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		wlSchema = new SchemaMobileWebClickTracking( {}, &#39;MobileWebWatchlistClickTracking&#39; ),
+		canonicalName = mw.config.get( &#39;wgCanonicalSpecialPageName&#39; ),
+		pageName = canonicalName === &#39;EditWatchlist&#39; || canonicalName === &#39;Watchlist&#39; ? &#39;watchlist&#39; : &#39;diff&#39;,
+		util = M.require( &#39;util&#39; ),
+		query = util.query,
+		subPageName = query.watchlistview || &#39;a-z&#39;;
+
+<span id='global-method-init'>	/**
+</span>	 * Initialises JavaScript on Special:Watchlist
+	 * @method
+	 * @ignore
+	 */
+	function init() {
+		var $watchlist = $( &#39;ul.page-list&#39; ),
+			actionNamePrefix = pageName + &#39;-&#39; + subPageName + &#39;-&#39;;
+
+		// FIXME: find more elegant way to not show watchlist stars on recent changes
+		if ( $( &#39;.mw-mf-watchlist-selector&#39; ).length === 0 ) {
+			watchlist = new WatchList( {
+				el: $watchlist,
+				enhance: true
+			} );
+			watchlist.on( &#39;unwatch&#39;, function () {
+				wlSchema.log( {
+					name: actionNamePrefix + &#39;unwatch&#39;
+				} );
+			} );
+			watchlist.on( &#39;watch&#39;, function () {
+				wlSchema.log( {
+					name: actionNamePrefix + &#39;watch&#39;
+				} );
+			} );
+		}
+		// not needed now we have JS view which has infinite scrolling
+		$( &#39;.more&#39; ).remove();
+
+		// Register EventLogging events
+		wlSchema.hijackLink( &#39;.button-bar a&#39;, actionNamePrefix + &#39;switch&#39; );
+		wlSchema.hijackLink( &#39;.mw-mf-watchlist-selector a&#39;, actionNamePrefix + &#39;filter&#39; );
+		wlSchema.hijackLink( &#39;.page-list .title&#39;, actionNamePrefix + &#39;view&#39; );
+	}
+
+	$( function () {
+		init();
+	} );
+
+} )( mw.mobileFrontend, jQuery );
+</pre>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var user,
+		browser = M.require( &#39;browser&#39; );
+
+<span id='user'>	/**
+</span>	 * Utility library for looking up details on the current user
+	 * @class user
+	 * @singleton
+	 */
+	user = {
+		/* @see mediaWiki.user */
+		tokens: mw.user.tokens,
+		/* @see mediaWiki.user */
+		isAnon: mw.user.isAnon,
+		/* @see mediaWiki.user */
+		getName: mw.user.getName,
+<span id='user-method-getEditCount'>		/**
+</span>		 * Find current users edit count
+		 * @method
+		 * @returns {Number} the edit count of the current user on the current wiki.
+		 */
+		getEditCount: function () {
+			return mw.config.get( &#39;wgUserEditCount&#39; );
+		},
+<span id='user-method-getGroups'>		/**
+</span>		 * FIXME: Not sure why mw.user is asynchronous when the information is available
+		 * For reasons I do not understand getGroups in core causes an unnecessary ajax request
+		 * The information this returns is identical to the content of the config variable.
+		 * To avoid an unnecessary ajax request on every page view simply use config variable.
+		 */
+		getGroups: function () {
+			return $.Deferred().resolve( mw.config.get( &#39;wgUserGroups&#39; ) );
+		},
+<span id='user-method-getSessionId'>		/**
+</span>		* Retrieve and, if not present, generate a random session ID
+		* (32 alphanumeric characters).
+		* FIXME: use settings module
+		*
+		* @method
+		* @return {String}
+		*/
+		getSessionId: function () {
+			var sessionId;
+			if ( !browser.supportsLocalStorage() ) {
+				return &#39;&#39;;
+			}
+			sessionId = localStorage.getItem( &#39;sessionId&#39; );
+
+			if ( !sessionId ) {
+				sessionId = mw.user.generateRandomSessionId();
+				localStorage.setItem( &#39;sessionId&#39;, sessionId );
+			}
+			return sessionId;
+		},
+
+<span id='user-method-inUserBucketA'>		/**
+</span>		* User Bucketing for A/B testing
+		* (we want this to be the same everywhere)
+		* @return {Boolean}
+		*/
+		inUserBucketA: function () {
+			return mw.config.get( &#39;wgUserId&#39; ) % 2 === 0;
+		}
+
+	};
+	M.define( &#39;user&#39;, user );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

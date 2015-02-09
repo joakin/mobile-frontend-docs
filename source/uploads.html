@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var
+		PhotoUploaderButton = M.require( &#39;modules/uploads/PhotoUploaderButton&#39; ),
+		user = M.require( &#39;user&#39; ),
+		popup = M.require( &#39;toast&#39; ),
+		PhotoList = M.require( &#39;modules/gallery/PhotoList&#39; ),
+		pageParams = mw.config.get( &#39;wgPageName&#39; ).split( &#39;/&#39; ),
+		currentUserName = user.getName(),
+		userName = pageParams[1] ? pageParams[1] : currentUserName;
+
+<span id='global-method-createButton'>	/**
+</span>	 * Create a {PhotoUploaderButton} with an uploads funnel.
+	 * @param {jQuery.Object} $container to append new button to.
+	 * @ignore
+	 */
+	function createButton( $container ) {
+		var btn = new PhotoUploaderButton( {
+			buttonCaption: mw.msg( &#39;mobile-frontend-photo-upload-generic&#39; ),
+			pageTitle: mw.config.get( &#39;wgTitle&#39; ),
+			funnel: &#39;uploads&#39;
+		} );
+
+		btn.appendTo( $container );
+	}
+
+<span id='global-method-init'>	/**
+</span>	 * Initialise a photo upload button at the top of the page.
+	 * @ignore
+	 */
+	function init() {
+		var userGallery, $a,
+			$btnContainer = $( &#39;.ctaUploadPhoto&#39; ),
+			$content = $( &#39;.content&#39; );
+
+		// Don&#39;t attempt to display the gallery if PHP displayed an error
+		if ( $( &#39;.error&#39; ).length ) {
+			return;
+		}
+
+		userGallery = new PhotoList( {
+			username: userName
+		} ).appendTo( $content );
+
+		if ( PhotoUploaderButton.isSupported &amp;&amp; currentUserName === userName &amp;&amp; mw.config.get( &#39;wgUserCanUpload&#39; ) ) {
+			if ( $btnContainer.length ) {
+				if ( user.getEditCount() === 0 ) {
+					$a = $( &#39;&lt;a class=&quot;button icon icon-photo icon-text mw-ui-button mw-ui-progressive&quot;&gt;&#39; )
+						.text( mw.msg( &#39;mobile-frontend-photo-upload-generic&#39; ) )
+						.attr( &#39;href&#39;, &#39;#/upload-tutorial/uploads&#39; ).appendTo( $btnContainer );
+					// FIXME: This is needed so the camera shows. Eww.
+					$( &#39;&lt;div class=&quot;icon icon icon-24px&quot;&gt;&#39; ).appendTo( $a );
+				} else {
+					createButton( $btnContainer );
+				}
+			}
+
+			// FIXME: Please find a way to do this without a global event.
+			M.on( &#39;_file-upload&#39;, function ( image ) {
+				var newCount, msgKey,
+					$counter = $btnContainer.find( &#39;h2&#39; ).show().find( &#39;span&#39; );
+
+				if ( userGallery.isEmpty() ) {
+					msgKey = &#39;mobile-frontend-donate-photo-first-upload-success&#39;;
+				} else {
+					msgKey = &#39;mobile-frontend-donate-photo-upload-success&#39;;
+				}
+				popup.show( mw.msg( msgKey ), &#39;toast&#39; );
+
+				userGallery.prependPhoto( image );
+
+				if ( $counter.length ) {
+					newCount = parseInt( $counter.text(), 10 ) + 1;
+					$counter.parent().html( mw.msg( &#39;mobile-frontend-photo-upload-user-count&#39;, newCount ) ).show();
+				}
+			} );
+		}
+	}
+
+	if ( userName &amp;&amp; mw.config.get( &#39;wgCanonicalSpecialPageName&#39; ) === &#39;Uploads&#39; ) {
+		$( init );
+	}
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

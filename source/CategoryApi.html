@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+
+	var CategoryApi,
+		SearchApi = M.require( &#39;modules/search/SearchApi&#39; );
+
+<span id='CategoryApi'>	/**
+</span>	 * Api for CategoryOverlay
+	 * @class CategoryApi
+	 * @extends SearchApi
+	 */
+	CategoryApi = SearchApi.extend( {
+<span id='CategoryApi-property-searchNamespace'>		/**
+</span>		 * @inheritdoc
+		 */
+		searchNamespace: 14,
+<span id='CategoryApi-method-getApiData'>		/**
+</span>		 * @inheritdoc
+		 */
+		getApiData: function ( query ) {
+			return {
+				action: &#39;query&#39;,
+				list: &#39;prefixsearch&#39;,
+				pssearch: query,
+				pslimit: 5,
+				psnamespace: this.searchNamespace
+			};
+		},
+
+<span id='CategoryApi-method-save'>		/**
+</span>		 * Saves the categories passed to this function to the page
+		 * @param {String} title Title of the current page (to add the categories to)
+		 * @param {String} categories List of Categories to add
+		 * @returns {jQuery.Deferred}
+		 */
+		save: function ( title, categories ) {
+			return this.postWithToken( &#39;edit&#39;, {
+				action: &#39;edit&#39;,
+				title: title,
+				appendtext: categories,
+				summary: mw.msg( &#39;mobile-frontend-categories-summary&#39; )
+			} );
+		},
+
+<span id='CategoryApi-method-getCategories'>		/**
+</span>		 * Returns the categories the title belongs to.
+		 * @param {String} title Title of the current page (to add the categories to)
+		 * @returns {jQuery.Deferred}
+		 */
+		getCategories: function ( title ) {
+			return this.get( {
+				action: &#39;query&#39;,
+				prop: &#39;categories&#39;,
+				titles: title,
+				clprop: &#39;hidden&#39;,
+				cllimit: 50 // FIXME: Replace with InfiniteScroll
+			} );
+		}
+	} );
+
+	M.define( &#39;modules/categories/CategoryApi&#39;, CategoryApi );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

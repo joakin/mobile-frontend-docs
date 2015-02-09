@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var
+		Overlay = M.require( &#39;Overlay&#39; ),
+		SearchApi = M.require( &#39;modules/search/SearchApi&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		PageList = M.require( &#39;modules/PageList&#39; ),
+		SEARCH_DELAY = 300,
+		$html = $( &#39;html&#39; ),
+		router = M.require( &#39;router&#39; ),
+		SearchOverlay;
+
+<span id='SearchOverlay'>	/**
+</span>	 * Overlay displaying search results
+	 * @class SearchOverlay
+	 * @extends Overlay
+	 * @uses PageList
+	 * @uses SearchApi
+	 * @uses Icon
+	 */
+	SearchOverlay = Overlay.extend( {
+		className: &#39;overlay search-overlay&#39;,
+		template: mw.template.get( &#39;mobile.search&#39;, &#39;SearchOverlay.hogan&#39; ),
+<span id='SearchOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.clearIcon HTML of the button that clears the search text.
+		 * @cfg {String} defaults.searchTerm Search text.
+		 * @cfg {String} defaults.placeholderMsg Search input placeholder text.
+		 * @cfg {String} defaults.clearMsg Tooltip for clear button that appears when you type
+		 * into search box.
+		 * @cfg {String} defaults.searchContentMsg Caption for a button performing full text
+		 * search of a given search query.
+		 * @cfg {String} defaults.noResultsMsg Message informing user that no pages were found
+		 * for a given query.
+		 * @cfg {String} defaults.searchContentNoResultsMsg Used when no pages with matching
+		 * titles were found.
+		 * @cfg {String} defaults.action The value of wgScript
+		 */
+		defaults: {
+			clearIcon: new Icon( {
+				tagName: &#39;button&#39;,
+				name: &#39;clear&#39;,
+				label: mw.msg( &#39;mobile-frontend-clear-search&#39; ),
+				additionalClassNames: &#39;clear&#39;
+			} ).toHtmlString(),
+			searchTerm: &#39;&#39;,
+			placeholderMsg: $( &#39;#searchInput&#39; ).attr( &#39;placeholder&#39; ),
+			searchContentMsg: mw.msg( &#39;mobile-frontend-search-content&#39; ),
+			noResultsMsg: mw.msg( &#39;mobile-frontend-search-no-results&#39; ),
+			searchContentNoResultsMsg: mw.msg( &#39;mobile-frontend-search-content-no-results&#39; ),
+			action: mw.config.get( &#39;wgScript&#39; )
+		},
+
+<span id='SearchOverlay-method-_hideOnRoute'>		/**
+</span>		 * Hide self when the route is visited
+		 * @method
+		 * @private
+		 * FIXME: Remove when search registers route with overlay manager
+		 */
+		_hideOnRoute: function () {
+			var self = this;
+			router.once( &#39;route&#39;, function ( ev ) {
+				if ( !self.hide() ) {
+					ev.preventDefault();
+					self._hideOnRoute();
+				}
+			} );
+		},
+
+<span id='SearchOverlay-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			var self = this;
+			Overlay.prototype.initialize.call( this, options );
+			this.api = new SearchApi();
+
+			// FIXME: Remove when search registers route with overlay manager
+			// we need this because of the focus/delay hack in search.js
+			router.once( &#39;route&#39;, function () {
+				self._hideOnRoute();
+			} );
+		},
+
+<span id='SearchOverlay-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function ( options ) {
+			var
+				self = this,
+				$clear = this.$( &#39;.clear&#39; ),
+				$form = this.$( &#39;form&#39; );
+
+			// Make sure search overlay lines up with search header when the overlay is
+			// rendered. This is necessary to prevent bug 67140 while sitenotices are
+			// displayed.
+			this.$( &#39;.overlay-header-container&#39; ).css( &#39;top&#39;, $( &#39;.header&#39; ).offset().top );
+			// No search happening by default
+			this.$( &#39;.spinner&#39; ).hide();
+
+			Overlay.prototype.postRender.call( this, options );
+
+			this.$input = this.$( &#39;input&#39; ).on( &#39;input&#39;, function () {
+				// Make sure search header is docked to the top of the screen when the
+				// user begins typing so that there is adequate space for search results
+				// above the keyboard. (This is only a potential issue when sitenotices
+				// are displayed.)
+				self.$( &#39;.overlay-header-container&#39; ).css( &#39;top&#39;, 0 );
+				self.performSearch();
+				$clear.toggle( self.$input.val() !== &#39;&#39; );
+			} );
+
+			// initialize the button that clears the search field
+			$clear.hide().on( &#39;click&#39;, function () {
+				self.$input.val( &#39;&#39; ).focus();
+				self.performSearch();
+				$clear.hide();
+			} );
+
+			// Initialize &#39;search within pages&#39; functionality
+			this.$searchContent = this.$( &#39;.search-content&#39; )
+				.hide()
+				// can&#39;t use $.proxy because it would pass ev to submit() which would
+				// be treated as alternative form data
+				.on( &#39;click&#39;, function () {
+					window.history.back();
+					// Add fulltext input to force fulltext search
+					$( &#39;&lt;input&gt;&#39; )
+						.attr( {
+							type: &#39;hidden&#39;,
+							name: &#39;fulltext&#39;,
+							value: &#39;search&#39;
+						} )
+						.appendTo( $form );
+					$form.submit();
+				} );
+
+			// tapping on background only should hide the overlay
+			this.$overlayContent
+				.on( &#39;click&#39;, function () {
+					self.$( &#39;.cancel&#39; ).trigger( &#39;click&#39; );
+				} )
+				.find( &#39;&gt; div&#39; ).on( &#39;click&#39;, function ( ev ) {
+					ev.stopPropagation();
+				} );
+
+			// hide the keyboard when scrolling starts (avoid weird situation when
+			// user taps on an item, the keyboard hides and wrong item is clicked)
+			this.$( &#39;.results&#39; ).on( &#39;touchstart mousedown&#39;, function () {
+				self.$input.blur();
+			} );
+		},
+
+<span id='SearchOverlay-method-show'>		/** @inheritdoc */
+</span>		show: function () {
+			var len = this.$input.val().length;
+			Overlay.prototype.show.apply( this, arguments );
+			this.$input.focus();
+			// Cursor to the end of the input
+			if ( this.$input[0].setSelectionRange ) {
+				this.$input[0].setSelectionRange( len, len );
+			}
+		},
+
+<span id='SearchOverlay-method-hide'>		/**
+</span>		 * Fade out if the browser supports animations
+		 * @inheritdoc
+		 */
+		hide: function () {
+			var self = this;
+
+			if ( $html.hasClass( &#39;animations&#39; ) ) {
+				self.$el.addClass( &#39;fade-out&#39; );
+				setTimeout( function () {
+					Overlay.prototype.hide.apply( self, arguments );
+				}, 500 );
+			} else {
+				Overlay.prototype.hide.apply( self, arguments );
+			}
+			return true;
+		},
+
+<span id='SearchOverlay-method-performSearch'>		/**
+</span>		 * Perform search and render results inside current view.
+		 * @method
+		 */
+		performSearch: function () {
+			var
+				self = this,
+				pageList,
+				query = this.$input.val(),
+				$results = this.$( &#39;.results&#39; );
+
+			// it seems the input event can be fired when virtual keyboard is closed
+			// (Chrome for Android)
+			if ( query !== this.lastQuery ) {
+				this.api.abort();
+				clearTimeout( this.timer );
+				self.$searchContent.hide();
+				$results.empty();
+
+				if ( query.length ) {
+					this.$( &#39;.spinner&#39; ).show();
+
+					this.timer = setTimeout( function () {
+						self.api.search( query ).done( function ( data ) {
+							// check if we&#39;re getting the rights response in case of out of
+							// order responses (need to get the current value of the input)
+							if ( data.query === self.$input.val() ) {
+								self.$searchContent
+									.show()
+									.find( &#39;p&#39; )
+									.hide()
+									.filter( data.results.length ? &#39;.with-results&#39; : &#39;.without-results&#39; )
+									.show();
+								self.$( &#39;.spinner&#39; ).hide();
+								pageList = new PageList( {
+									pages: data.results,
+									el: $results
+								} );
+								pageList.renderPageImages();
+<span id='SearchOverlay-event-search-results'>								/**
+</span>								 * @event search-results
+								 * Fired when search API returns results
+								 */
+								M.emit( &#39;search-results&#39;, self, data.results );
+							}
+						} );
+					}, this.api.isCached( query ) ? 0 : SEARCH_DELAY );
+				} else {
+					self.$( &#39;.spinner&#39; ).hide();
+				}
+
+				this.lastQuery = query;
+			}
+		}
+	} );
+
+	M.define( &#39;modules/search/SearchOverlay&#39;, SearchOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

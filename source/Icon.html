@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var View = M.require( &#39;View&#39; ),
+		context = M.require( &#39;context&#39; ),
+		useMediaWikiUI = context.isBetaGroupMember(),
+		Icon;
+
+<span id='Icon'>	/**
+</span>	 * A wrapper for creating an icon.
+	 * @class Icon
+	 * @extends View
+	 */
+	Icon = View.extend( {
+<span id='Icon-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {Boolean} defaults.hasText Whether the icon has text.
+		 * @cfg {String} defaults.tagName The name of the tag in which the icon is wrapped.
+		 * @cfg {String} defaults.base String used as a base for generating class names.
+		 * Defaults to &#39;mw-ui-icon&#39; (alpha) or &#39;icon&#39; (stable and beta).
+		 * @cfg {String} defaults.name Name of the icon.
+		 * @cfg {String} defaults.modifier Additional class name.
+		 * Defaults to &#39;mw-ui-icon-element&#39; (alpha) or &#39;&#39; (stable and beta).
+		 * @cfg {String} defaults.title Tooltip text.
+		 */
+		defaults: {
+			hasText: false,
+			tagName: &#39;div&#39;,
+			base: useMediaWikiUI ? &#39;mw-ui-icon&#39; : &#39;icon&#39;,
+			name: &#39;&#39;,
+			modifier: useMediaWikiUI ? &#39;mw-ui-icon-element&#39; : &#39;&#39;,
+			title: &#39;&#39;
+		},
+<span id='Icon-method-getClassName'>		/**
+</span>		 * Return the full class name that is required for the icon to render
+		 * @method
+		 * @return {String}
+		 */
+		getClassName: function () {
+			return this.$el.attr( &#39;class&#39; );
+		},
+<span id='Icon-method-getGlyphClassName'>		/**
+</span>		 * Return the class that relates to the icon glyph
+		 * @method
+		 * @return {String}
+		 */
+		getGlyphClassName: function () {
+			return this.options.base + &#39;-&#39; + this.options.name;
+		},
+<span id='Icon-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			if ( options.hasText ) {
+				options.modifier = useMediaWikiUI ? &#39;mw-ui-icon-before&#39; : &#39;icon-text&#39;;
+			}
+			View.prototype.initialize.call( this, options );
+		},
+<span id='Icon-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			View.prototype.postRender.apply( this, arguments );
+			this.$el = this.$el.children( 0 );
+		},
+<span id='Icon-method-toHtmlString'>		/**
+</span>		 * Return the HTML representation of this view
+		 * @method
+		 * @return {String}
+		 */
+		toHtmlString: function () {
+			return $( &#39;&lt;div&gt;&#39; ).append( this.$el ).html();
+		},
+		template: mw.template.get( &#39;mobile.startup&#39;, &#39;icon.hogan&#39; )
+	} );
+
+	M.define( &#39;Icon&#39;, Icon );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

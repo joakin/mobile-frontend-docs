@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// When set orders LanguageOverlay list of languages by most frequently chosen
+( function ( M, $ ) {
+	var browser = M.require( &#39;browser&#39; ),
+		supported = browser.supportsLocalStorage(),
+		settings = M.require( &#39;settings&#39; ),
+		langMap = settings.get( &#39;langMap&#39; ),
+		curLanguage = mw.config.get( &#39;wgContentLanguage&#39; );
+
+	langMap = langMap ? $.parseJSON( langMap ) : {};
+
+<span id='global-method-loadLanguageMap'>	/**
+</span>	 * Update the langMap variable with the language map from the settings.
+	 * @method
+	 * @ignore
+	 */
+	function loadLanguageMap() {
+		langMap = settings.get( &#39;langMap&#39; );
+		langMap = langMap ? JSON.parse( langMap ) : {};
+	}
+
+<span id='global-method-profileLanguage'>	/**
+</span>	 * Update langMap and save it to settings.
+	 * If not supported, don&#39;t do anything.
+	 * @method
+	 * @ignore
+	 * @param {String} language
+	 */
+	function profileLanguage( language ) {
+		if ( supported &amp;&amp; langMap ) {
+			var count;
+			count = langMap[ language ] || 0;
+			count += 1;
+			// cap at 100 as this is enough data to work on
+			langMap[ language ] = count &gt; 100 ? 100 : count;
+			settings.save( &#39;langMap&#39;, JSON.stringify( langMap ) );
+		}
+	}
+
+<span id='global-method-initProfiler'>	/**
+</span>	 * Run loadLanguageMap and profileLanguage if browser supports localStorage.
+	 * @method
+	 * @ignore
+	 */
+	function initProfiler() {
+		if ( supported ) {
+			loadLanguageMap();
+			profileLanguage( curLanguage );
+		}
+	}
+
+	M.on( &#39;language-overlay-initialize&#39;, function ( options ) {
+		options.languages = options.languages.sort( function ( a, b ) {
+			var x = langMap[ a.lang ] || 0,
+				y = langMap[ b.lang ] || 0;
+			if ( x &gt; 0 ) {
+				a.preferred = true;
+			}
+			if ( y &gt; 0 ) {
+				b.preferred = true;
+			}
+			return x &lt; y;
+		} );
+	} );
+	M.on( &#39;language-select&#39;, profileLanguage );
+	initProfiler();
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var
+		settings = M.require( &#39;settings&#39; ),
+		util = M.require( &#39;util&#39; ),
+		router = M.require( &#39;router&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		loader = M.require( &#39;loader&#39; ),
+		query = util.query,
+		Icon = M.require( &#39;Icon&#39; ),
+		disabledEditIcon = new Icon( {
+			name: &#39;edit&#39;
+		} ),
+		enabledEditIcon = new Icon( {
+			name: &#39;edit-enabled&#39;
+		} ),
+		currentPage = M.getCurrentPage(),
+		enabledClass = enabledEditIcon.getGlyphClassName(),
+		disabledClass = disabledEditIcon.getGlyphClassName(),
+		browser = M.require( &#39;browser&#39; ),
+		user = M.require( &#39;user&#39; ),
+		popup = M.require( &#39;toast&#39; ),
+		// FIXME: Disable on IE &lt; 10 for time being
+		blacklisted = /MSIE \d\./.test( navigator.userAgent ),
+		isEditingSupported = router.isSupported() &amp;&amp; !blacklisted,
+		// FIXME: Use currentPage.getId()
+		isNewPage = currentPage.options.id === 0,
+		isNewFile = currentPage.inNamespace( &#39;file&#39; ) &amp;&amp; isNewPage,
+		veConfig = mw.config.get( &#39;wgVisualEditorConfig&#39; ),
+		// FIXME: Should we consider default site options and user prefs?
+		isVisualEditorEnabled = browser.isWideScreen() &amp;&amp; veConfig,
+		CtaDrawer = M.require( &#39;CtaDrawer&#39; ),
+		toast = M.require( &#39;toast&#39; ),
+		pendingToast = settings.get( &#39;mobile-pending-toast&#39; ),
+		drawer = new CtaDrawer( {
+			queryParams: {
+				campaign: &#39;mobile_editPageActionCta&#39;
+			},
+			signupQueryParams: {
+				returntoquery: &#39;article_action=signup-edit&#39;
+			},
+			content: mw.msg( &#39;mobile-frontend-editor-cta&#39; )
+		} ),
+		$caEdit = $( &#39;#ca-edit&#39; );
+
+	if ( pendingToast ) {
+		// delete the pending toast
+		settings.save( &#39;mobile-pending-toast&#39;, &#39;&#39; );
+		toast.show( pendingToast );
+	}
+
+<span id='global-method-addEditButton'>	/**
+</span>	 * Prepend an edit page button to the container
+	 * @method
+	 * @ignore
+	 * @param {Number} section number
+	 * @param {String} container CSS selector of the container
+	 * @returns {jQuery.Object} newly created edit page button
+	 */
+	function addEditButton( section, container ) {
+		return $( &#39;&lt;a class=&quot;edit-page&quot;&gt;&#39; )
+			.attr( &#39;href&#39;, &#39;#/editor/&#39; + section )
+			.text( mw.msg( &#39;mobile-frontend-editor-edit&#39; ) )
+			.prependTo( container );
+	}
+
+<span id='global-method-makeCta'>	/**
+</span>	 * Make an element render a CTA when clicked
+	 * @method
+	 * @ignore
+	 * @param {jQuery.Object} $el Element which will render a drawer on click
+	 * @param {Number} section number representing the section
+	 */
+	function makeCta( $el, section ) {
+		var options = {
+			queryParams: {
+				returnto: mw.config.get( &#39;wgPageName&#39; ),
+				returntoquery: &#39;action=edit&amp;section=&#39; + section
+			}
+		};
+
+		$el
+			.on( &#39;click&#39;, function ( ev ) {
+				ev.preventDefault();
+				// prevent folding section when clicking Edit
+				ev.stopPropagation();
+				// need to use toggle() because we do ev.stopPropagation() (in addEditButton())
+				drawer
+					.render( options )
+					.toggle();
+			} )
+			// needed until we use tap everywhere to prevent the link from being followed
+			.on( &#39;click&#39;, false );
+	}
+
+<span id='global-method-getPreferredEditor'>	/**
+</span>	 * Retrieve the user&#39;s preferred editor setting. If none is set, return the default
+	 * editor for this wiki.
+	 * @method
+	 * @ignore
+	 * @return {String} Either &#39;VisualEditor&#39; or &#39;SourceEditor&#39;
+	 */
+	function getPreferredEditor() {
+		var preferredEditor = settings.get( &#39;preferredEditor&#39;, true );
+		if ( preferredEditor === null ) {
+			// For now, we are going to ignore which editor is set as the default for the
+			// wiki and always default to the source editor. Once we decide to honor the
+			// default editor setting for the wiki, we&#39;ll want to use:
+			// visualEditorDefault = veConfig &amp;&amp; veConfig.defaultUserOptions &amp;&amp; veConfig.defaultUserOptions.enable;
+			// return visualEditorDefault ? &#39;VisualEditor&#39; : &#39;SourceEditor&#39;;
+			return &#39;SourceEditor&#39;;
+		} else {
+			return preferredEditor;
+		}
+	}
+
+<span id='global-method-setupEditor'>	/**
+</span>	 * Initialize the edit button so that it launches the editor interface when clicked.
+	 * @method
+	 * @ignore
+	 * @param {Page} page The page to edit.
+	 */
+	function setupEditor( page ) {
+		var isNewPage = page.options.id === 0;
+		if ( query.undo ) {
+			window.alert( mw.msg( &#39;mobile-frontend-editor-undo-unsupported&#39; ) );
+		}
+
+		overlayManager.add( /^\/editor\/(\d+)\/?([^\/]*)$/, function ( sectionId, funnel ) {
+			var
+				result = $.Deferred(),
+				preferredEditor = getPreferredEditor(),
+				editorOptions = {
+					title: page.title,
+					isAnon: user.isAnon(),
+					isNewPage: isNewPage,
+					isNewEditor: user.getEditCount() === 0,
+					oldId: query.oldid,
+					funnel: funnel || &#39;article&#39;,
+					// FIXME: cache this selector, it&#39;s used more than once
+					contentLang: $( &#39;#content&#39; ).attr( &#39;lang&#39; ),
+					contentDir: $( &#39;#content&#39; ).attr( &#39;dir&#39; )
+				},
+				visualEditorNamespaces = veConfig &amp;&amp; veConfig.namespaces;
+
+<span id='global-method-loadSourceEditor'>			/**
+</span>			 * Load source editor
+			 * @private
+			 * @ignore
+			 * @method
+			 */
+			function loadSourceEditor() {
+				loader.loadModule( &#39;mobile.editor.overlay&#39; ).done( function () {
+					var EditorOverlay = M.require( &#39;modules/editor/EditorOverlay&#39; );
+					result.resolve( new EditorOverlay( editorOptions ) );
+				} );
+			}
+
+			editorOptions.sectionId = page.isWikiText() ? parseInt( sectionId, 10 ) : null;
+
+			// Check whether VisualEditor should be loaded
+			if ( isVisualEditorEnabled &amp;&amp;
+
+				// Only for pages with a wikitext content model
+				page.isWikiText() &amp;&amp;
+
+				// Only in enabled namespaces
+				$.inArray( mw.config.get( &#39;wgNamespaceNumber&#39; ), visualEditorNamespaces ) &gt; -1 &amp;&amp;
+
+				// Not on pages which are outputs of the Page Translation feature
+				mw.config.get( &#39;wgTranslatePageTranslation&#39; ) !== &#39;translation&#39; &amp;&amp;
+
+				// If the user prefers the VisualEditor or the user has no preference and
+				// the VisualEditor is the default editor for this wiki
+				preferredEditor === &#39;VisualEditor&#39;
+			) {
+				loader.loadModule( &#39;mobile.editor.ve&#39; ).done( function () {
+					var VisualEditorOverlay = M.require( &#39;modules/editor/VisualEditorOverlay&#39; );
+					result.resolve( new VisualEditorOverlay( editorOptions ) );
+				} ).fail( loadSourceEditor );
+			} else {
+				loadSourceEditor();
+			}
+
+			return result;
+		} );
+		$caEdit.addClass( enabledClass ).removeClass( disabledClass ).removeClass( &#39;hidden&#39; );
+
+		// Make sure we never create two edit links by accident
+		// FIXME: split the selector and cache it
+		if ( $caEdit.find( &#39;.edit-page&#39; ).length === 0 ) {
+			// FIXME: unfortunately the main page is special cased.
+			if ( mw.config.get( &#39;wgIsMainPage&#39; ) || isNewPage || page.getLeadSectionElement().text() ) {
+				// if lead section is not empty, open editor with lead section
+				addEditButton( 0, &#39;#ca-edit&#39; );
+			} else {
+				// if lead section is empty, open editor with first section
+				addEditButton( 1, &#39;#ca-edit&#39; );
+			}
+		}
+
+		$( &#39;.edit-page&#39; ).on( &#39;click&#39;, function ( ev ) {
+			// prevent folding section when clicking Edit
+			ev.stopPropagation();
+		} );
+	}
+
+<span id='global-method-init'>	/**
+</span>	 * Setup the editor if the user can edit the page otherwise show a sorry toast.
+	 * @method
+	 * @ignore
+	 */
+	function init() {
+		if ( currentPage.isEditable( user ) ) {
+			setupEditor( currentPage );
+		} else {
+			$caEdit.removeClass( &#39;hidden&#39; );
+			showSorryToast( &#39;mobile-frontend-editor-disabled&#39; );
+		}
+	}
+
+<span id='global-method-initCta'>	/**
+</span>	 * Initialize the edit button so that it launches a login call-to-action when clicked.
+	 * @method
+	 * @ignore
+	 */
+	function initCta() {
+		// Initialize edit button links (to show Cta) only, if page is editable,
+		// otherwise show an error toast
+		if ( currentPage.isEditable( user ) ) {
+			$caEdit.addClass( enabledClass ).removeClass( disabledClass ).removeClass( &#39;hidden&#39; );
+			// Init lead section edit button
+			makeCta( $caEdit, 0 );
+
+			// Init all edit links (including lead section, if anonymous editing is enabled)
+			$( &#39;.edit-page&#39; ).each( function () {
+				var $a = $( this ),
+					section = 0;
+
+				if ( $( this ).data( &#39;section&#39; ) !== undefined ) {
+					section = $( this ).data( &#39;section&#39; );
+				}
+				makeCta( $a, section );
+			} );
+		} else {
+			$caEdit.removeClass( &#39;hidden&#39; );
+			showSorryToast( &#39;mobile-frontend-editor-disabled&#39; );
+		}
+	}
+<span id='global-method-showSorryToast'>	/**
+</span>	 * Show a toast message with sincere condolences.
+	 * @method
+	 * @ignore
+	 * @param {String} msg Message key for sorry message
+	 */
+	function showSorryToast( msg ) {
+		$( &#39;#ca-edit, .edit-page&#39; ).on( &#39;click&#39;, function ( ev ) {
+			popup.show( mw.msg( msg ), &#39;toast&#39; );
+			ev.preventDefault();
+		} );
+	}
+
+	if ( !isEditingSupported ) {
+		// Editing is disabled (or browser is blacklisted)
+		$caEdit.removeClass( &#39;hidden&#39; );
+		showSorryToast( &#39;mobile-frontend-editor-unavailable&#39; );
+	} else if ( isNewFile ) {
+		$caEdit.removeClass( &#39;hidden&#39; );
+		// Is a new file page (enable upload image only) Bug 58311
+		showSorryToast( &#39;mobile-frontend-editor-uploadenable&#39; );
+	} else {
+		if ( user.isAnon() ) {
+			// Cta&#39;s will be rendered in EditorOverlay, if anonymous editing is enabled.
+			if ( mw.config.get( &#39;wgMFEditorOptions&#39; ).anonymousEditing ) {
+				init();
+			} else {
+				initCta();
+			}
+		} else {
+			if ( mw.config.get( &#39;wgMFIsLoggedInUserBlocked&#39; ) ) {
+				$caEdit.removeClass( &#39;hidden&#39; );
+				// User is blocked. Both anonymous and logged in users can be blocked.
+				showSorryToast( &#39;mobile-frontend-editor-blocked&#39; );
+			} else {
+				init();
+			}
+		}
+	}
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

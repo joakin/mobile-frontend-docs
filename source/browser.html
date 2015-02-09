@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var browser;
+
+<span id='global-method-memoize'>	/**
+</span>	 * Memoize a class method. Caches the result of the method based on the
+	 * arguments. Instances do not share a cache.
+	 * @ignore
+	 * @param {Function} method Method to be memoized
+	 * @returns {Function}
+	 */
+	function memoize( method ) {
+<span id='global-method-memoized'>		/**
+</span>		 * Memoized version of the method
+		 * @ignore
+		 */
+		var memoized = function () {
+			var cache = this[ &#39;__cache&#39; + memoized.cacheId ] ||
+				( this[ &#39;__cache&#39; + memoized.cacheId ] = {} ),
+				key = [].join.call( arguments, &#39;|&#39; );
+			if ( cache.hasOwnProperty( key ) ) {
+				return cache[ key ];
+			}
+			return ( cache[ key ] = method.apply( this, arguments ) );
+		};
+		memoized.cacheId = Date.now().toString() + Math.random().toString();
+		return memoized;
+	}
+
+<span id='Browser'>	/**
+</span>	 * Representation of user&#39;s current browser
+	 * @class Browser
+	 * @param {String} ua the user agent of the current browser
+	 * @param {jQuery.Object} $container an element to associate with the Browser object
+	 */
+	function Browser( ua, $container ) {
+		this.userAgent  = ua;
+		this.$el = $container;
+		if ( this.isAndroid2() ) {
+			this.lockViewport();
+		}
+		this._fixIosLandscapeBug();
+	}
+
+	Browser.prototype = {
+<span id='Browser-method-_fixIosLandscapeBug'>		/**
+</span>		 * When rotating to landscape stop page zooming on ios 4 and 5.
+		 * @private
+		 */
+		_fixIosLandscapeBug: function () {
+			var self = this,
+				viewport = this.$el.find( &#39;meta[name=&quot;viewport&quot;]&#39; )[0];
+
+			// see http://adactio.com/journal/4470/ (fixed in ios 6)
+			if ( viewport &amp;&amp; ( this.isIos( 4 ) || this.isIos( 5 ) ) ) {
+				this.lockViewport();
+				document.addEventListener( &#39;gesturestart&#39;, function () {
+					self.lockViewport();
+				}, false );
+			}
+		},
+<span id='Browser-method-isIos'>		/**
+</span>		 * Returns whether the current browser is an ios device.
+		 * FIXME: jquery.client does not support iPad detection so we cannot use it.
+		 * @param {Number} [version] integer describing a specific version you want to test against.
+		 * @return {Boolean}
+		 */
+		isIos: memoize( function ( version ) {
+			var ua = this.userAgent,
+				ios = /ipad|iphone|ipod/i.test( ua );
+
+			if ( ios &amp;&amp; version ) {
+				switch ( version ) {
+					case 8:
+						// Test UA for iOS8. Or for simulator look for Version 8
+						// In the iOS simulator the OS is the host machine OS version
+						// This makes testing in iOS8 simulator work as expected
+						return /OS 8_/.test( ua ) || /Version\/8/.test( ua );
+					case 4:
+						return /OS 4_/.test( ua );
+					case 5:
+						return /OS 5_/.test( ua );
+					default:
+						return false;
+				}
+			} else {
+				return ios;
+			}
+		} ),
+<span id='Browser-method-lockViewport'>		/**
+</span>		 * Locks the viewport so that pinch zooming is disabled
+		 */
+		lockViewport: function () {
+			if ( this.$el ) {
+				this.$el.find( &#39;meta[name=&quot;viewport&quot;]&#39; )
+					.attr( &#39;content&#39;, &#39;initial-scale=1.0, maximum-scale=1.0, user-scalable=no&#39; );
+			}
+		},
+<span id='Browser-method-isAndroid2'>		/**
+</span>		 * Determine if a device is Android 2.
+		 * @method
+		 * @return {Boolean}
+		 */
+		isAndroid2: memoize( function () {
+			return /Android 2/.test( this.userAgent );
+		} ),
+<span id='Browser-method-isWideScreen'>		/**
+</span>		 * Determine if a device has a widescreen.
+		 * @method
+		 * @return {Boolean}
+		 */
+		isWideScreen: function () {
+			var val = mw.config.get( &#39;wgMFDeviceWidthTablet&#39; );
+			// Check portrait and landscape mode to be consistent
+			return window.innerWidth &gt;= val || window.innerHeight &gt;= val;
+		},
+<span id='Browser-method-supportsAnimations'>		/**
+</span>		 * Checks browser support for CSS transforms, transitions
+		 * and CSS animation.
+		 * Currently assumes support for the latter 2 in the case of the
+		 * former.
+		 * See http://stackoverflow.com/a/12621264/365238
+		 *
+		 * @returns {Boolean}
+		 */
+		supportsAnimations: memoize( function () {
+			var  has3d, t,
+				el = $( &#39;&lt;p&gt;&#39; )[0],
+				$iframe = $( &#39;&lt;iframe&gt;&#39; ),
+				transforms = {
+					webkitTransform: &#39;-webkit-transform&#39;,
+					transform: &#39;transform&#39;
+				};
+
+			// don&#39;t trust Android 2.x, really
+			// animations cause textareas to misbehave on it
+			// (http://stackoverflow.com/a/5734984/365238)
+			if ( this.isAndroid2() ) {
+				return false;
+			}
+
+			// Add it to the body to get the computed style
+			// Sandbox it inside an iframe to avoid Android Browser quirks
+			$iframe.appendTo( &#39;body&#39; ).contents().find( &#39;body&#39; ).append( el );
+
+			for ( t in transforms ) {
+				if ( transforms.hasOwnProperty( t ) ) {
+					if ( el.style[t] !== undefined ) {
+						el.style[t] = &#39;translate3d(1px,1px,1px)&#39;;
+						has3d = window.getComputedStyle( el ).getPropertyValue( transforms[t] );
+					}
+				}
+			}
+
+			$iframe.remove();
+
+			return has3d !== undefined &amp;&amp; has3d.length &gt; 0 &amp;&amp; has3d !== &#39;none&#39;;
+		} ),
+<span id='Browser-method-supportsPositionFixed'>		/**
+</span>		 * Detect if fixed position is supported in browser
+		 * http://www.quirksmode.org/blog/archives/2010/12/the_fifth_posit.html
+		 * https://github.com/Modernizr/Modernizr/issues/167
+		 * http://mobilehtml5.org/
+		 * @method
+		 * @return {Boolean}
+		 */
+		supportsPositionFixed: memoize( function () {
+			var support = false,
+				userAgent = this.userAgent;
+
+			$.each( [
+				// Webkit 534+
+				/AppleWebKit\/(53[4-9]|5[4-9]\d|[6-9]\d\d|\d{4,})/,
+				// Android 2+ (we lockViewport for Android 2 meaning we can support it)
+				/Android [2-9]/,
+				// any Firefox
+				/Firefox/,
+				// Trident (IE 10+)
+				/Trident\/[6-9]|Trident\/1\d[\d\.]+/
+			], function ( index, item ) {
+				if ( item.test( userAgent ) ) {
+					support = true;
+				}
+			} );
+			return support;
+		} ),
+<span id='Browser-method-supportsTouchEvents'>		/**
+</span>		 * Whether touchstart and other touch events are supported by the current browser.
+		 *
+		 * @method
+		 * @return {Boolean}
+		 */
+		supportsTouchEvents: memoize( function () {
+			return &#39;ontouchstart&#39; in window;
+		} ),
+<span id='Browser-method-supportsGeoLocation'>		/**
+</span>		 * Detect if browser supports geolocation
+		 * @method
+		 * @return {Boolean}
+		 */
+		supportsGeoLocation: memoize( function () {
+			return &#39;geolocation&#39; in navigator;
+		} ),
+<span id='Browser-method-supportsLocalStorage'>		/**
+</span>		 * Detect if local storage
+		 * @method
+		 * @return {Boolean}
+		 */
+		supportsLocalStorage: memoize( function () {
+			// See if local storage is supported
+			try {
+				localStorage.setItem( &#39;localStorageTest&#39;, &#39;localStorageTest&#39; );
+				localStorage.removeItem( &#39;localStorageTest&#39; );
+				return true;
+			} catch ( e ) {
+				return false;
+			}
+		} ),
+<span id='Browser-method-supportsFileUploads'>		/**
+</span>		 * Detect if we support file input uploads
+		 * @return {Boolean}
+		 */
+		supportsFileUploads: memoize( function () {
+			var browserSupported;
+			// If already calculated, just return it
+			if ( this._fileUploads !== undefined ) {
+				return this._fileUploads;
+			}
+
+			// deal with known false positives which don&#39;t support file input (bug 47374)
+			if ( this.userAgent.match( /Windows Phone (OS 7|8.0)/ ) ) {
+				this._fileUploads = false;
+			} else {
+				browserSupported = (
+					typeof FileReader !== &#39;undefined&#39; &amp;&amp;
+					typeof FormData !== &#39;undefined&#39; &amp;&amp;
+					// Firefox OS 1.0 turns &lt;input type=&quot;file&quot;&gt; into &lt;input type=&quot;text&quot;&gt;
+					( $( &#39;&lt;input type=&quot;file&quot;/&gt;&#39; ).prop( &#39;type&#39; ) === &#39;file&#39; )
+				);
+				this._fileUploads = browserSupported &amp;&amp;
+					!mw.config.get( &#39;wgImagesDisabled&#39;, false );
+			}
+			return this._fileUploads;
+		} )
+	};
+
+	browser = new Browser( window.navigator.userAgent, $( &#39;html&#39; ) );
+	M.define( &#39;Browser&#39;, Browser );
+	M.define( &#39;browser&#39;, browser );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

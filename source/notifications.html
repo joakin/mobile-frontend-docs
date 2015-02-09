@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*
+ * This code loads the necessary modules for the notifications overlay, not to be confused
+ * with the Toast notifications defined by common/toast.js.
+ */
+( function ( M, $, mw ) {
+	var MobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		uiSchema = new MobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; ),
+		mainMenu = M.require( &#39;skin&#39; ).getMainMenu(),
+		$btn = $( &#39;#secondary-button.user-button&#39; ),
+		router = M.require( &#39;router&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		icons = M.require( &#39;icons&#39; );
+
+<span id='global-method-loadModuleScript'>	/**
+</span>	 * Loads a ResourceLoader module script. Shows ajax loader whilst loading.
+	 * @method
+	 * @ignore
+	 * FIXME: Upstream to mw.mobileFrontend and reuse elsewhere
+	 * @param {String} moduleName Name of a module to fetch
+	 * @returns {jQuery.Deferred}
+	 */
+	function loadModuleScript( moduleName ) {
+		var d = $.Deferred(),
+			$spinner = $( icons.spinner().toHtmlString() );
+
+		$btn.hide().after( $spinner );
+		mw.loader.using( moduleName, function () {
+			// FIXME: Some code uses the loading class while other code uses the
+			// spinner class. Make all code consistent so it&#39;s easier to change.
+			$spinner.remove();
+			$btn.show();
+			d.resolve();
+		} );
+		return d;
+	}
+
+	// Once the DOM is loaded hijack the notifications button to display an overlay rather
+	// than linking to Special:Notifications.
+	$( function () {
+		$btn.on( &#39;click&#39;, function () {
+			uiSchema.log( {
+				name: &#39;notifications&#39;
+			} );
+			router.navigate( &#39;#/notifications&#39; );
+			// Important that we also prevent propagation to avoid interference with events that may be
+			// binded on #mw-mf-page-center that close overlay
+			return false;
+		} );
+
+<span id='global-method-loadNotificationOverlay'>		/**
+</span>		 * Load the notification overlay.
+		 * @method
+		 * @ignore
+		 * @private
+		 * @uses NotificationsOverlay
+		 * @returns {jQuery.Deferred} with an instance of NotificationsOverlay
+		 */
+		function loadNotificationOverlay() {
+			var result = $.Deferred();
+			loadModuleScript( &#39;mobile.notifications.overlay&#39; ).done( function () {
+				var NotificationsOverlay = M.require( &#39;modules/notifications/NotificationsOverlay&#39; );
+				result.resolve(
+					new NotificationsOverlay( {
+						$badge: $btn,
+						count: parseInt( $btn.find( &#39;span&#39; ).text(), 10 )
+					} )
+				);
+			} );
+
+			return result;
+		}
+
+		overlayManager.add( /^\/notifications$/, function () {
+			return loadNotificationOverlay().done( function ( overlay ) {
+				mainMenu.openNavigationDrawer( &#39;secondary&#39; );
+				overlay.on( &#39;hide&#39;, function () {
+					mainMenu.closeNavigationDrawers();
+					$( &#39;#mw-mf-page-center&#39; ).off( &#39;.secondary&#39; );
+				} );
+
+				$( &#39;#mw-mf-page-center&#39; ).one( &#39;click.secondary&#39;, function () {
+					router.back();
+				} );
+			} );
+		} );
+	} );
+}( mw.mobileFrontend, jQuery, mw ) );
+</pre>
+</body>
+</html>

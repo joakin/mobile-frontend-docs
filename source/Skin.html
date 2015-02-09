@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var Skin,
+		browser = M.require( &#39;browser&#39; ),
+		View = M.require( &#39;View&#39; );
+
+<span id='Skin'>	/**
+</span>	 * Representation of the current skin being rendered.
+	 *
+	 * @class Skin
+	 * @extends View
+	 * @uses Browser
+	 * @uses Page
+	 */
+	Skin = View.extend( {
+<span id='Skin-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {Page} defaults.page page the skin is currently rendering
+		 * @cfg {Array} defaults.tabletModules modules to load when in tablet
+		 * @cfg {MainMenu} defaults.mainMenu instance of the mainMenu
+		 */
+		defaults: {
+			page: undefined,
+			tabletModules: [],
+			mainMenu: undefined
+		},
+
+<span id='Skin-property-events'>		/**
+</span>		 * @inheritdoc
+		 */
+		events: {
+			&#39;click #mw-mf-page-center&#39;: &#39;_onPageCenterClick&#39;
+		},
+
+<span id='Skin-method-_onPageCenterClick'>		/**
+</span>		 * Close navigation if content tapped
+		 * @param {jQuery.Event} ev
+		 * @private
+		 */
+		_onPageCenterClick: function ( ev ) {
+			if ( ev.target.id !== &#39;mw-mf-main-menu-button&#39; &amp;&amp; this.mainMenu.isOpen() ) {
+				this.mainMenu.closeNavigationDrawers();
+				ev.preventDefault();
+			}
+		},
+
+<span id='Skin-method-setupPositionFixedEmulation'>		/**
+</span>		 * Setup position fixed emulation using position absolute.
+		 */
+		setupPositionFixedEmulation: function () {
+			var $el = this.$el,
+				// FIXME: Move all the variables below to Browser.js
+				ua = window.navigator.userAgent,
+				isIos = browser.isIos(),
+				isOldIPhone = isIos &amp;&amp; /OS [4]_[0-2]|OS [3]_/.test( ua );
+
+			$el.addClass( &#39;no-position-fixed&#39; );
+			this.on( &#39;scroll&#39;, function () {
+				var scrollTop = $( window ).scrollTop(),
+					windowHeight = $( window ).height(),
+					activeElement = document.activeElement,
+					scrollBottom = scrollTop + windowHeight;
+				if ( isOldIPhone ) {
+					if ( activeElement.tagName === &#39;TEXTAREA&#39; || activeElement.tagName === &#39;INPUT&#39; ) {
+						// add the height of the open soft keyboard
+						scrollBottom -= 120;
+					} else {
+						// add the height of the address bar
+						scrollBottom += 60;
+					}
+				}
+
+				if ( scrollTop === 0 ) {
+					// special case when we&#39;re at the beginning of the page and many
+					// browsers (e.g. Android 2.x) return wrong window height because
+					// of the URL bar
+					$el.add( &#39;.overlay&#39; ).height( &#39;100%&#39; );
+				} else {
+					// keep expanding the viewport until the end of the page reached
+					// #notification has bottom: 0 and sticks to the end of the viewport
+					$el.add( &#39;.overlay&#39; ).height( scrollBottom );
+				}
+			} );
+		},
+<span id='Skin-method-initialize'>		/**
+</span>		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			var self = this;
+
+			this.page = options.page;
+			this.name = options.name;
+			this.tabletModules = options.tabletModules;
+			this.mainMenu = options.mainMenu;
+			View.prototype.initialize.apply( this, arguments );
+
+<span id='global-method-loadWideScreenModules'>			/**
+</span>			 * Tests current window size and if suitable loads styles and scripts specific for larger devices
+			 *
+			 * @method
+			 * @ignore
+			 */
+			function loadWideScreenModules() {
+				if ( browser.isWideScreen() ) {
+					// Adjust screen for tablets
+					if ( self.page.inNamespace( &#39;&#39; ) ) {
+						mw.loader.using( self.tabletModules ).always( function () {
+							self.off( &#39;_resize&#39; );
+						} );
+					}
+				}
+			}
+			M.on( &#39;resize&#39;, $.proxy( this, &#39;emit&#39;, &#39;_resize&#39; ) );
+			this.on( &#39;_resize&#39;, loadWideScreenModules );
+			this.emit( &#39;_resize&#39; );
+		},
+<span id='Skin-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function () {
+			var $el = this.$el;
+			if ( browser.supportsAnimations() ) {
+				$el.addClass( &#39;animations&#39; );
+			}
+			if ( !browser.supportsPositionFixed() ) {
+				this.setupPositionFixedEmulation();
+			}
+			if ( browser.supportsTouchEvents() ) {
+				$el.addClass( &#39;touch-events&#39; );
+			}
+			$( &#39;&lt;div class=&quot;transparent-shield cloaked-element&quot;&gt;&#39; ).appendTo( &#39;#mw-mf-page-center&#39; );
+		},
+
+<span id='Skin-method-getMainMenu'>		/**
+</span>		 * Return the instance of MainMenu
+		 * @returns {MainMenu}
+		 */
+		getMainMenu: function () {
+			return this.mainMenu;
+		}
+	} );
+
+	M.define( &#39;Skin&#39;, Skin );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

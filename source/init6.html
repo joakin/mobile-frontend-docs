@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	// Run only in alpha mode
+	M.require( &#39;context&#39; ).assertMode( [ &#39;alpha&#39; ] );
+
+	var user = M.require( &#39;user&#39; ),
+		page = M.getCurrentPage(),
+		loader = M.require( &#39;loader&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		editorConfig = mw.config.get( &#39;wgMFEditorOptions&#39; );
+
+	// Make sure we are not on the Main Page, are in main namespace, and either the user
+	// is logged in or anonymous editing is allowed.
+	if ( !page.isMainPage() &amp;&amp;
+		// FIXME: Use Page object.
+		mw.config.get( &#39;wgNamespaceNumber&#39; ) === 0 &amp;&amp;
+		( !user.isAnon() || editorConfig.anonymousEditing )
+	) {
+
+		// Make overlayManager handle URL for &#39;Report an error&#39; button
+		overlayManager.add( /^\/error-report$/, function () {
+			var result = $.Deferred();
+			loader.loadModule( &#39;mobile.errorReport.overlay&#39;, true )
+				.done( function ( loadingOverlay ) {
+					var ErrorReportOverlay = M.require( &#39;errorReport/ErrorReportOverlay&#39; );
+					loadingOverlay.hide();
+					result.resolve( new ErrorReportOverlay() );
+				} );
+				// FIXME: Use event logging on fail event
+			return result;
+		} );
+
+		// Add &#39;Report an error&#39; button into page
+		$( function () {
+			var $errorButton = $( &#39;&lt;a class=&quot;mw-ui-button button reportError&quot;&gt;&#39; )
+				.text( mw.msg( &#39;mobile-frontend-errorreport-button-label&#39; ) )
+				.attr( &#39;href&#39;, &#39;#/error-report&#39; );
+			$errorButton.appendTo( $( &#39;#page-secondary-actions&#39; ) );
+		} );
+	}
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

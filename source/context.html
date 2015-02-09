@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var context;
+
+<span id='context'>	/**
+</span>	 * Mobile mode helper class
+	 *
+	 * @class context
+	 * @singleton
+	 */
+	context = {
+<span id='context-method-getMode'>		/**
+</span>		 * Gets current mobile mode
+		 * @method
+		 * @returns {String} Name of mode
+		 */
+		getMode: function () {
+			return mw.config.get( &#39;wgMFMode&#39; );
+		},
+
+<span id='context-method-isAlphaGroupMember'>		/**
+</span>		 * Determines if mobile mode is alpha
+		 * @method
+		 * @return {Boolean}
+		 */
+		isAlphaGroupMember: function () {
+			return this.getMode() === &#39;alpha&#39;;
+		},
+
+<span id='context-method-isBetaGroupMember'>		/**
+</span>		 * Determines if mobile mode is beta or alpha
+		 * @method
+		 * @return {Boolean}
+		 */
+		isBetaGroupMember: function () {
+			return this.getMode() === &#39;beta&#39; || this.isAlphaGroupMember();
+		},
+
+<span id='context-method-assertMode'>		/**
+</span>		 * Detect module being run outside allowed mode
+		 * @method
+		 * @param {Array} modes Array of allowed mode names
+		 * @throws Error when a module is run out of its allowed modes
+		 */
+		assertMode: function ( modes ) {
+			var mode = this.getMode();
+			if ( $.inArray( mode, modes ) === -1 ) {
+				throw new Error( &#39;Attempt to run module outside declared environment mode &#39; + mode );
+			}
+		}
+	};
+
+	M.define( &#39;context&#39;, context );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

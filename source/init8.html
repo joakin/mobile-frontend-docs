@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	M.require( &#39;context&#39; ).assertMode( [ &#39;alpha&#39; ] );
+	var infobox,
+		page = M.getCurrentPage(),
+		wikidataID = mw.config.get( &#39;wgWikibaseItemId&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		InfoboxEditorOverlay = M.require( &#39;modules/wikigrok/InfoboxEditorOverlay&#39; ),
+		Infobox = M.require( &#39;modules/wikigrok/Infobox&#39; );
+
+	// Load infoboxes on pages in the main space which are not main pages
+	if ( wikidataID &amp;&amp; !page.isMainPage() &amp;&amp; page.getNamespaceId() === 0 ) {
+		// build the future
+		infobox = new Infobox( {
+			itemId: wikidataID
+		} );
+		infobox.insertAfter( &#39;.pre-content&#39; );
+
+		overlayManager.add( /\/infobox\/editor/, function () {
+			return new InfoboxEditorOverlay( {
+				infobox: infobox
+			} );
+		} );
+	}
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

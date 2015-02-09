@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// Determine whether or not it is appropriate to load WikiGrok, and if so, load it.
+( function ( M, $ ) {
+	var wikidataID = mw.config.get( &#39;wgWikibaseItemId&#39; ),
+		util = M.require( &#39;util&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		Schema = M.require( &#39;Schema&#39; ),
+		errorSchema = new Schema( {}, &#39;MobileWebWikiGrokError&#39; ),
+		settings = M.require( &#39;settings&#39; ),
+		query = util.query,
+		browser = M.require( &#39;browser&#39; ),
+		permittedOnThisDevice = mw.config.get( &#39;wgMFEnableWikiGrokOnAllDevices&#39; ) || !browser.isWideScreen(),
+		idOverride,
+		versionConfigs = {
+			A: {
+				module: &#39;mobile.wikigrok.dialog&#39;,
+				view: &#39;modules/wikigrok/WikiGrokDialog&#39;,
+				name: &#39;a&#39;
+			},
+			B: {
+				module: &#39;mobile.wikigrok.dialog.b&#39;,
+				view: &#39;modules/wikigrok/WikiGrokDialogB&#39;,
+				name: &#39;b&#39;
+			},
+			C: {
+				module: &#39;mobile.wikigrok.dialog.c&#39;,
+				view: &#39;modules/wikigrok/WikiGrokDialogC&#39;,
+				name: &#39;c&#39;
+			}
+		},
+		versionConfig,
+		WikiGrokAbTest = M.require( &#39;WikiGrokAbTest&#39; ),
+		wikiGrokUser = M.require( &#39;wikiGrokUser&#39; ),
+		wikiGrokVersion = query.wikigrokversion,
+		wikiGrokCampaigns = M.require( &#39;modules/wikigrok/wikiGrokCampaigns&#39; ),
+		campaign = wikiGrokCampaigns.getRandomCampaign();
+
+<span id='global-method-hasUserAlreadyContributedToWikiGrok'>	/**
+</span>	 * Checks whether the user has already seen and responded to a WikiGrok question
+	 * before on this article and device.
+	 * @method
+	 * @ignore
+	 * @returns {Boolean}
+	 */
+	function hasUserAlreadyContributedToWikiGrok() {
+		var pages = $.parseJSON(
+				settings.get( &#39;pagesWithWikiGrokContributions&#39;, false ) || &#39;{}&#39;
+			),
+			result = false;
+
+		if ( M.getCurrentPage().title in pages ) {
+			result = true;
+		}
+		return result;
+	}
+
+<span id='global-method-getWikiGrokConfig'>	/**
+</span>	 * Gets the configuration for the version of WikiGrok to use.
+	 *
+	 * The `wikigrokversion` query parameter can be used to override this logic,
+	 * `wikigrokversion=a` means that A will always be used. The `wikigrokversion`
+	 * hash takes precedence over the query parameter. For example,
+	 * `#wikigrokversion=c` is used for loading wikigrok roulette.
+	 * If the override version doesn&#39;t exist, then the default version
+	 * (currently A) will be used.
+	 *
+	 * If the user is eligible to enter the WikiGrok AB test, then the test
+	 * determines which version to use.
+	 * @method
+	 * @ignore
+	 * @return {Object|null}
+	 */
+	function getWikiGrokConfig() {
+		var versionOverride,
+			versionConfig = null,
+			wikiGrokAbTest = WikiGrokAbTest.newFromMwConfig();
+
+		if ( window.location.hash.toLowerCase() === &#39;#wikigrokversion=c&#39; ) {
+			wikiGrokVersion = &#39;c&#39;;
+		}
+
+		// See if there is a query string override or in hash
+		if ( wikiGrokVersion ) {
+			versionOverride = wikiGrokVersion.toUpperCase();
+
+			if ( versionConfigs.hasOwnProperty( versionOverride ) ) {
+				versionConfig = versionConfigs[versionOverride];
+			}
+		// Otherwise, see if A/B test is running, and if so, choose a version.
+		} else if ( wikiGrokAbTest.isEnabled ) {
+			versionConfig = versionConfigs[wikiGrokAbTest.getVersion( wikiGrokUser )];
+		}
+
+		return versionConfig;
+	}
+
+	versionConfig = getWikiGrokConfig();
+
+	// Allow query string override for testing, for example, &#39;?wikidataid=Q508703&#39;
+	if ( !wikidataID ) {
+		idOverride = query.wikidataid;
+		if ( idOverride ) {
+			mw.config.set( &#39;wgWikibaseItemId&#39;, idOverride );
+			wikidataID = idOverride;
+		}
+	}
+
+<span id='global-method-isWikiGrokAllowed'>	/**
+</span>	 * Check whether WikiGrok interface should be loaded on this page
+	 * @ignore
+	 * @returns {Boolean}
+	 */
+	function isWikiGrokAllowed() {
+		if (
+			// There is a campaign that applies to this page
+			campaign &amp;&amp;
+			// WikiGrok is enabled and configured for this user
+			versionConfig &amp;&amp;
+			// User is not anonymous or we have enabled WikiGrok for anonymous users
+			( !mw.user.isAnon() || mw.config.get( &#39;wgMFEnableWikiGrokForAnons&#39; ) ) &amp;&amp;
+			// We&#39;re not on the Main Page
+			!mw.config.get( &#39;wgIsMainPage&#39; ) &amp;&amp;
+			// We&#39;re in &#39;view&#39; mode
+			mw.config.get( &#39;wgAction&#39; ) === &#39;view&#39; &amp;&amp;
+			// We&#39;re in Main namespace
+			mw.config.get( &#39;wgNamespaceNumber&#39; ) === 0 &amp;&amp;
+			// Wikibase is active and this page has an item ID
+			wikidataID
+		) {
+			// Bypass certain conditions when debugging or using WikiGrok Roulette
+			if ( query.wikidataid || query.wikigrokversion || versionConfigs.name === &#39;c&#39; ) {
+				return true;
+			}
+			if (
+				// Only show WikiGrok to 10 in every 62 users so that we don&#39;t overload
+				// EventLogging during tests. See mw.user.generateRandomSessionId().
+				// FIXME: Remove this when A/B test is over and page-impression and
+				// widget-impression logging have been removed.
+				wikiGrokUser.getToken().charAt( 0 ) &lt; &#39;A&#39; &amp;&amp;
+				// Permitted on this device. WikiGrok Roulette is fine on tablet, but
+				// formatting is awkward for other WikiGrok versions on tablet.
+				permittedOnThisDevice &amp;&amp;
+				// User hasn&#39;t already contributed through WikiGrok on this page before
+				!hasUserAlreadyContributedToWikiGrok()
+			) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	if ( isWikiGrokAllowed() ) {
+		// Load the required module and view based on the version for the user
+		mw.loader.using( versionConfig.module ).done( function () {
+			var WikiGrokDialog = M.require( versionConfig.view ),
+				page = M.getCurrentPage(),
+				// Initialize the dialog and insert it into the page (but don&#39;t display yet)
+				// The version c is a drawer and is automatically inserted to the page and displayed
+				dialog = new WikiGrokDialog( {
+					campaign: campaign,
+					itemId: wikidataID,
+					title: mw.config.get( &#39;wgTitle&#39; ),
+					userToken: wikiGrokUser.getToken(),
+					testing: ( idOverride ) ? true : false
+				} );
+			if ( !dialog.isDrawer() ) {
+				// FIXME: If the table of contents code is not loaded the dialog will still
+				//   get added to the end of the lead section.
+				if ( $( &#39;.toc-mobile&#39; ).length ) {
+					dialog.insertBefore( &#39;.toc-mobile&#39; );
+				} else {
+					dialog.appendTo( page.getLeadSectionElement() );
+				}
+			}
+		} ).fail( function () {
+			var data = {
+				error: &#39;no-impression-cannot-load-interface&#39;,
+				taskType: &#39;version &#39; + versionConfig.name,
+				taskToken: mw.user.generateRandomSessionId(),
+				userToken: wikiGrokUser.getToken(),
+				isLoggedIn: !wikiGrokUser.isAnon()
+			};
+			if ( idOverride ) {
+				data.testing = true;
+			}
+			errorSchema.log( data );
+		} );
+
+		// Make OverlayManager handle &#39;#/wikigrok/about&#39; links.
+		overlayManager.add( /^\/wikigrok\/about$/, function () {
+			var d = $.Deferred();
+			mw.loader.using( &#39;mobile.wikigrok.dialog&#39; ).done( function () {
+				var WikiGrokMoreInfo = M.require( &#39;modules/wikigrok/WikiGrokMoreInfo&#39; );
+				d.resolve( new WikiGrokMoreInfo() );
+			} );
+			return d;
+		} );
+	}
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

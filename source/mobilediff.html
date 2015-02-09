@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( $, M ) {
+	var SchemaMobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		diffSchema = new SchemaMobileWebClickTracking( {}, &#39;MobileWebDiffClickTracking&#39; );
+
+	// EventLogging events
+	// Clicking through to article
+	diffSchema.hijackLink( &#39;h2 a&#39;, &#39;view&#39; );
+
+	// Clicking previous or next diff links
+	diffSchema.hijackLink( &#39;.revision-history-links a&#39;, &#39;prev-or-next&#39; );
+
+	// user link
+	diffSchema.hijackLink( &#39;.mw-mf-user a&#39;, &#39;user&#39; );
+
+	// thank button is already logged tracked in the Thank extension
+	// If you update the schema related code, remember to update the Thank extension too
+
+} )( jQuery, mw.mobileFrontend );
+</pre>
+</body>
+</html>

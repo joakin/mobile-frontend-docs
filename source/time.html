@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var units = [ &#39;seconds&#39;, &#39;minutes&#39;, &#39;hours&#39;, &#39;days&#39;, &#39;months&#39;, &#39;years&#39; ],
+		limits = [ 1, 60, 3600, 86400, 2592000, 31536000 ];
+
+<span id='global-method-timeAgo'>	/**
+</span>	 * Calculate the correct unit of timestamp
+	 * @param {Number} timestampDelta
+	 * @returns {{value: Number, unit: String}}
+	 * @ignore
+	 */
+	function timeAgo( timestampDelta ) {
+		var i = 0;
+		while ( i &lt; limits.length &amp;&amp; timestampDelta &gt; limits[i + 1] ) {
+			++i;
+		}
+		return {
+			value: Math.round( timestampDelta / limits[i] ),
+			unit: units[i]
+		};
+	}
+
+<span id='global-method-getTimeAgoDelta'>	/**
+</span>	 * Calculate the correct unit of timestamp delta
+	 * @param {Number} timestamp
+	 * @returns {{value: Number, unit: String}}
+	 * @ignore
+	 */
+	function getTimeAgoDelta( timestamp ) {
+		var currentTimestamp = Math.round( new Date().getTime() / 1000 );
+
+		return timeAgo( currentTimestamp - timestamp );
+	}
+
+<span id='global-method-isRecent'>	/**
+</span>	 * Whether timestamp delta is less than a day old
+	 * @param {{value: Number, unit: String}} delta Object of timestamp and its label
+	 * @returns {Boolean}
+	 * @ignore
+	 */
+	function isRecent( delta ) {
+		var u = delta.unit;
+		return $.inArray( u, [ &#39;seconds&#39;, &#39;minutes&#39;, &#39;hours&#39; ] ) &gt; -1;
+	}
+
+<span id='global-method-isNow'>	/**
+</span>	 * Is delta less than 10 seconds?
+	 * @param {{value: Number, unit: String}} delta Object of timestamp and its label
+	 * @returns {Boolean}
+	 * @ignore
+	 */
+	function isNow( delta ) {
+		return delta.unit === &#39;seconds&#39; &amp;&amp; delta.value &lt; 10;
+	}
+
+	M.define( &#39;modules/lastEdited/time&#39;, {
+		timeAgo: timeAgo,
+		getTimeAgoDelta: getTimeAgoDelta,
+		isNow: isNow,
+		isRecent: isRecent
+	} );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var NearbyApi = M.require( &#39;modules/nearby/NearbyApi&#39; ),
+		PageList = M.require( &#39;modules/PageList&#39; ),
+		Nearby,
+		browser = M.require( &#39;browser&#39; ),
+		icons = M.require( &#39;icons&#39; );
+
+<span id='Nearby'>	/**
+</span>	 * List of nearby pages
+
+	 * @class Nearby
+	 * @uses NearbyApi
+	 * @extends PageList
+	 */
+	Nearby = PageList.extend( {
+		errorMessages: {
+			empty: {
+				heading: mw.msg( &#39;mobile-frontend-nearby-noresults&#39; ),
+				guidance: mw.msg( &#39;mobile-frontend-nearby-noresults-guidance&#39; )
+			},
+			location: {
+				heading: mw.msg( &#39;mobile-frontend-nearby-lookup-ui-error&#39; ),
+				guidance: mw.msg( &#39;mobile-frontend-nearby-lookup-ui-error-guidance&#39; )
+			},
+			permission: {
+				heading: mw.msg( &#39;mobile-frontend-nearby-permission&#39; ),
+				guidance: mw.msg( &#39;mobile-frontend-nearby-permission-guidance&#39; )
+			},
+			server: {
+				heading: mw.msg( &#39;mobile-frontend-nearby-error&#39; ),
+				guidance: mw.msg( &#39;mobile-frontend-nearby-error-guidance&#39; )
+			},
+			incompatible: {
+				heading: mw.msg( &#39;mobile-frontend-nearby-requirements&#39; ),
+				guidance: mw.msg( &#39;mobile-frontend-nearby-requirements-guidance&#39; )
+			}
+		},
+		templatePartials: {
+			pageList: PageList.prototype.template
+		},
+		template: mw.template.get( &#39;mobile.nearby&#39;, &#39;Nearby.hogan&#39; ),
+<span id='Nearby-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.spinner HTML of the spinner icon with a tooltip that
+		 * tells the user that their location is being looked up
+		 */
+		defaults: {
+			spinner: icons.spinner( {
+				title: mw.msg( &#39;mobile-frontend-nearby-loading&#39; )
+			} ).toHtmlString()
+		},
+
+<span id='Nearby-method-getCurrentPosition'>		/**
+</span>		 * Obtain users current location and return a deferred object with the
+		 * longitude and latitude values
+		 * Resolve return object with &#39;incompatible&#39; if browser doesn&#39;t support geo location
+		 *
+		 * @return {jQuery.Deferred}
+		 */
+		getCurrentPosition: function () {
+			var result = $.Deferred();
+			if ( browser.supportsGeoLocation() ) {
+				navigator.geolocation.getCurrentPosition( function ( geo ) {
+						result.resolve( {
+							latitude: geo.coords.latitude,
+							longitude: geo.coords.longitude
+						} );
+					},
+					function ( err ) {
+						// see https://developer.mozilla.org/en-US/docs/Web/API/PositionError
+						if ( err.code === 1 ) {
+							err = &#39;permission&#39;;
+						} else {
+							err = &#39;location&#39;;
+						}
+						result.reject( err );
+					},
+					{
+						timeout: 10000,
+						enableHighAccuracy: true
+					} );
+			} else {
+				result.reject( &#39;incompatible&#39; );
+			}
+			return result;
+		},
+<span id='Nearby-method-initialize'>		/**
+</span>		 * Get pages within a nearby range of current location
+		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			var self = this,
+				_super = PageList.prototype.initialize;
+
+			this.range = options.range || mw.config.get( &#39;wgMFNearbyRange&#39; ) || 1000;
+			this.source = options.source || &#39;nearby&#39;;
+			this.nearbyApi = new NearbyApi();
+
+			if ( options.errorType ) {
+				options.error = this.errorMessages[ options.errorType ];
+			}
+
+			// Re-run after api/geolocation request
+			if ( options.useCurrentLocation ) {
+				// Flush any existing list of pages
+				options.pages = [];
+
+				// Get some new pages
+				this.getCurrentPosition().done( function ( coordOptions ) {
+					$.extend( options, coordOptions );
+					self._find( options ).done( function ( options ) {
+						_super.call( self, options );
+					} );
+				} ).fail( function ( errorType ) {
+					options.errorType = errorType;
+					_super.call( self, options );
+				} );
+			} else if ( ( options.latitude &amp;&amp; options.longitude ) || options.pageTitle ) {
+				// Flush any existing list of pages
+				options.pages = [];
+
+				// Get some new pages
+				this._find( options ).done( function ( options ) {
+					_super.call( self, options );
+				} );
+			}
+
+			// Run it once for loader etc
+			this._isLoading = true;
+			_super.apply( this, arguments );
+		},
+<span id='Nearby-method-_find'>		/**
+</span>		 * Request pages from api based on provided options.
+		 * When options.longitude and options.latitude set getPages near that location.
+		 * If those are not present use options.title to find pages near that title.
+		 * If no valid options given resolve return object with error message.
+		 * @param {Object} options
+		 * @return {jQuery.Deferred}
+		 * @private
+		 */
+		_find: function ( options ) {
+			var result = $.Deferred(),
+				self = this;
+
+<span id='global-method-pagesSuccess'>			/**
+</span>			 * Handler for successful query
+			 * @param {Array} pages as passed by done callback of Nearby##getPages
+			 * @ignore
+			 */
+			function pagesSuccess( pages ) {
+				options.pages = pages;
+				if ( pages &amp;&amp; pages.length === 0 ) {
+					options.error = self.errorMessages.empty;
+				}
+				self._isLoading = false;
+				result.resolve( options );
+			}
+
+<span id='global-method-pagesError'>			/**
+</span>			 * Handler for failed query
+			 * @ignore
+			 */
+			function pagesError() {
+				self._isLoading = false;
+				options.error = self.errorMessages.server;
+				result.resolve( options );
+			}
+
+			if ( options.latitude &amp;&amp; options.longitude ) {
+				this.nearbyApi.getPages( {
+							latitude: options.latitude,
+							longitude: options.longitude
+						},
+						this.range, options.exclude
+					)
+					.done( pagesSuccess )
+					.fail( pagesError );
+			} else if ( options.pageTitle ) {
+				this.nearbyApi.getPagesAroundPage( options.pageTitle, this.range )
+					.done( pagesSuccess )
+					.fail( pagesError );
+			} else {
+				if ( options.errorType ) {
+					options.error = this.errorMessages[ options.errorType ];
+				}
+				result.resolve( options );
+			}
+			return result;
+		},
+<span id='Nearby-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			if ( !this._isLoading ) {
+				this.$( &#39;.spinner&#39; ).hide();
+			}
+			PageList.prototype.postRender.apply( this, arguments );
+			this._postRenderLinks();
+		},
+<span id='Nearby-method-_postRenderLinks'>		/**
+</span>		 * Hijack links to apply several customisations to them:
+		 * Ensure that when clicked they register an uploads funnel.
+		 * Ensure that when a user navigates back to the page their page position is restored using
+		 * fragment identifier trickery.
+		 * @private
+		 */
+		_postRenderLinks: function () {
+			var offset,
+				hash = window.location.hash;
+
+			this.$( &#39;a&#39; ).each( function ( i ) {
+				// FIXME: not unique if multiple Nearby objects on same page
+				$( this ).attr( &#39;id&#39;, &#39;nearby-page-list-item-&#39; + i );
+			} ).on( &#39;click&#39;, function () {
+				window.location.hash = $( this ).attr( &#39;id&#39; );
+				// name funnel for watchlists to catch subsequent uploads
+				$.cookie( &#39;mwUploadsFunnel&#39;, &#39;nearby&#39;, {
+					expires: new Date( new Date().getTime() + 60000 )
+				} );
+			} );
+
+			// Restore the offset
+			if ( hash.indexOf( &#39;/&#39; ) === -1 ) {
+				offset = $( window.location.hash ).offset();
+				if ( offset ) {
+					// Don&#39;t reset the hash here as we don&#39;t want to trigger another Route
+					$( window ).scrollTop( offset.top );
+				}
+			}
+		}
+	} );
+
+	M.define( &#39;modules/nearby/Nearby&#39;, Nearby );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

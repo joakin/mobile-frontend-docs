@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js"> ( function ( M, $ ) {
+	var Panel = M.require( &#39;Panel&#39; ),
+		skin = M.require( &#39;skin&#39; ),
+		settings = M.require( &#39;settings&#39; ),
+		WikiGrokResponseApi = M.require( &#39;modules/wikigrok/WikiGrokResponseApi&#39; ),
+		icons = M.require( &#39;icons&#39; ),
+		Schema = M.require( &#39;Schema&#39; ),
+		SchemaMobileWebWikiGrok = M.require( &#39;loggingSchemas/SchemaMobileWebWikiGrok&#39; ),
+		schema = new SchemaMobileWebWikiGrok(),
+		errorSchema = new Schema( {}, &#39;MobileWebWikiGrokError&#39; ),
+		WikiGrokDialog,
+		timer = null,
+		$window = $( window );
+
+<span id='WikiGrokDialog'>	/**
+</span>	 * @class WikiGrokDialog
+	 * @extends Panel
+	 * THIS IS AN EXPERIMENTAL FEATURE THAT MAY BE MOVED TO A SEPARATE EXTENSION.
+	 * This creates the dialog at the bottom of the lead section that appears when a user
+	 * scrolls past the lead. It asks the user to confirm metadata information for use
+	 * in Wikidata (https://www.wikidata.org).
+	 */
+	WikiGrokDialog = Panel.extend( {
+		version: &#39;a&#39;,
+		className: &#39;wikigrok&#39;,
+<span id='WikiGrokDialog-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {Boolean} defaults.beginQuestions Whether to show questions.
+		 * @cfg {String} defaults.taskToken Task token used in schemas.
+		 * @cfg {String} defaults.closeMsg Text for the button in an overlay that, when clicked,
+		 * dismisses the overlay.
+		 * @cfg {String} defaults.contentMsg Message that tells what to do, it&#39;s the message
+		 * in the first pane of main dialog.
+		 * @cfg {Array} defaults.buttons Array of {Object}s that will be used as options to
+		 * create buttons. Defaults to &#39;No, thanks&#39; and &#39;Okay!&#39; buttons.
+		 * @cfg {String} defaults.noticeMsg A link that opens an overlay with more information about
+		 * WikiGrok.
+		 */
+		defaults: {
+			beginQuestions: false,
+			taskToken: mw.user.generateRandomSessionId(),
+			closeMsg: mw.msg( &#39;mobile-frontend-overlay-close&#39; ),
+			contentMsg: &#39;Improve Wikipedia by tagging information on this page&#39;,
+			tellMoreMsg: &#39;Tell me more&#39;,
+			// Other ideas:
+			// Can you help improve Wikipedia?
+			// Play a game to help Wikipedia!
+			// Help add tags to this page!
+			buttons: [
+				{
+					classes: &#39;cancel inline mw-ui-button&#39;,
+					label: &#39;No, thanks&#39;
+				},
+				{
+					classes: &#39;proceed inline mw-ui-button mw-ui-progressive&#39;,
+					label: &#39;Okay!&#39;
+				}
+			],
+			spinner: icons.spinner().toHtmlString(),
+			// FIXME: Split first 2 steps into separate templates so that we don&#39;t have to
+			// include HTML in the notice messages.
+			noticeMsg: &#39;&lt;a class=&quot;wg-notice-link&quot; href=&quot;#/wikigrok/about&quot;&gt;Tell me more&lt;/a&gt;&#39;,
+			isDrawer: false
+		},
+		template: mw.template.get( &#39;mobile.wikigrok.dialog&#39;, &#39;Dialog.hogan&#39; ),
+		templatePartials: {
+			error: mw.template.get( &#39;mobile.wikigrok.dialog&#39;, &#39;Error.hogan&#39; )
+		},
+		events: {
+			&#39;click .wg-link .tell-more&#39;: &#39;onClickTellMore&#39;
+		},
+
+<span id='WikiGrokDialog-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			var self = this;
+
+			// Remove any disambiguation parentheticals from the title.
+			options.name = options.title.replace( / \(.+\)$/, &#39;&#39; );
+
+			this.apiWikiGrokResponse = new WikiGrokResponseApi( {
+				itemId: options.itemId,
+				subject: options.name,
+				version: this.version,
+				userToken: options.userToken,
+				taskToken: this.defaults.taskToken
+			} );
+			Panel.prototype.initialize.apply( this, arguments );
+
+			// log page impression
+			// Only turn this on for bucketed tests with a relatively small number of
+			// users, e.g. 10% of readers.
+			//self.logPageImpression();
+
+			// log widget impression when the widget is shown
+			this.once( &#39;show&#39;, function () {
+				self.initializeWidgetImpressionLogging();
+			} );
+		},
+
+<span id='WikiGrokDialog-method-log'>		/**
+</span>		 * Log data to the schema
+		 * @method
+		 * @param {String} action to log as described in schema
+		 *  See [Schema][1] for details on valid values.
+		 *
+		 * [1]: https://meta.wikimedia.org/wiki/Schema:MobileWebWikiGrok
+		 */
+		log: function ( action ) {
+			var data = {
+				action: action,
+				taskType: &#39;version &#39; + this.version,
+				taskToken: this.defaults.taskToken,
+				userToken: this.options.userToken,
+				// the position of the top of the widget in viewports (as a unit)
+				widgetOffset: parseFloat( ( this.$el.offset().top / $window.height() ).toFixed( 2 ) ),
+				// top of the document - top of the viewport in viewports (as a unit)
+				scrollOffset: parseFloat( ( $window.scrollTop() / $window.height() ).toFixed( 2 ) )
+			};
+			if ( this.options.testing ) {
+				data.testing = true;
+			}
+			schema.log( data );
+		},
+
+<span id='WikiGrokDialog-method-logError'>		/**
+</span>		 * Log data to the error schema
+		 * @method
+		 * @param {String} error to log as described in schema
+		 *  See [Schema][1] for details on valid values.
+		 *
+		 * [1]: https://meta.wikimedia.org/wiki/Schema:MobileWebWikiGrok
+		 */
+		logError: function ( error ) {
+			var data = {
+				error: error,
+				taskType: &#39;version &#39; + this.version,
+				taskToken: this.defaults.taskToken,
+				userToken: this.options.userToken,
+				isLoggedIn: !mw.user.isAnon()
+			};
+
+			if ( this.options.testing ) {
+				data.testing = true;
+			}
+			errorSchema.log( data );
+		},
+
+<span id='WikiGrokDialog-method-handleError'>		/**
+</span>		 * Display error message and log &#39;error&#39;
+		 * @method
+		 * @param {String} error
+		 */
+		handleError: function ( error ) {
+			this.showError();
+			this.logError( error );
+		},
+
+<span id='WikiGrokDialog-method-chooseRandomItemsFromArray'>		/**
+</span>		 * Randomly select &#39;count&#39; elements from &#39;array&#39;
+		 * @method
+		 * @param {Array} array Array from which random elements are selected
+		 * @param {Number} count - Positive number of random elements to select
+		 * @returns {Array} a new array from &#39;array&#39; with &#39;count&#39; randomly selected elements
+		 */
+		chooseRandomItemsFromArray: function ( array, count ) {
+			var arrayCopy, i, randomIndex,
+				result = [],
+				arrayLength = array.length;
+
+			if ( arrayLength &gt;= 1 ) {
+				count = ( count &gt; arrayLength ) ? arrayLength : count;
+
+				// only clone the array if we need to return more than one element
+				if ( count &gt; 1 ) {
+					arrayCopy = array.slice();
+					// with each iteration the arrayCopy size decreases by 1.
+					for ( i = 1; i &lt;= count; i++ ) {
+						randomIndex = Math.round( Math.random() * ( arrayLength - i ) );
+						result = result.concat( arrayCopy.splice( randomIndex, 1 ) );
+					}
+				} else {
+					randomIndex = Math.round( Math.random() * ( arrayLength - 1 ) );
+					result.push( array[ randomIndex ] );
+				}
+			}
+			return result;
+		},
+
+<span id='WikiGrokDialog-method-askWikidataQuestion'>		/**
+</span>		 * Creates a question with a yes, no and not sure answer.
+		 * Makes API request to Wikidata to retrieve labels and uses campaigns for that.
+		 * FIXME: No i18n
+		 * @method
+		 * @param {Object} options needed to render.
+		 */
+		askWikidataQuestion: function ( options ) {
+			var self = this,
+				vowels = [ &#39;a&#39;, &#39;e&#39;, &#39;i&#39;, &#39;o&#39;, &#39;u&#39; ];
+
+			options.claimId = options.campaign.randomClaimId;
+			options.claimLabel = options.campaign.questions[options.claimId];
+
+			if ( options.campaign.name === &#39;author&#39; ) {
+				// Hack for English prototype
+				if ( $.inArray( options.claimLabel.charAt( 0 ), vowels ) === -1 ) {
+					options.contentMsg = &#39;Is &#39; + options.name + &#39; a &#39; + options.claimLabel + &#39;?&#39;;
+				} else {
+					options.contentMsg = &#39;Is &#39; + options.name + &#39; an &#39; + options.claimLabel + &#39;?&#39;;
+				}
+			} else if ( options.campaign.name === &#39;actor&#39; ) {
+				options.contentMsg = &#39;Is &#39; + options.name + &#39; a &#39; + options.claimLabel + &#39;?&#39;;
+			} else if ( options.campaign.name === &#39;album&#39; ) {
+				options.contentMsg = &#39;Is this a &#39; + options.claimLabel + &#39;?&#39;;
+			}
+
+			// Re-render with new content for &#39;Question&#39; step
+			options.beginQuestions = true;
+			options.buttons = [
+				{
+					classes: &#39;yes inline mw-ui-button mw-ui-progressive&#39;,
+					label: &#39;Yes&#39;
+				},
+				{
+					classes: &#39;not-sure inline mw-ui-button&#39;,
+					label: &#39;Not Sure&#39;
+				},
+				{
+					classes: &#39;no inline mw-ui-button mw-ui-progressive&#39;,
+					label: &#39;No&#39;
+				}
+			];
+			options.noticeMsg = &#39;All submissions are &lt;a class=&quot;wg-notice-link&quot; &#39; +
+				&#39;href=&quot;#/wikigrok/about&quot;&gt;released freely&lt;/a&gt;&#39;;
+			self.render( options );
+		},
+
+<span id='WikiGrokDialog-method-showError'>		/**
+</span>		 * Show the error message
+		 * @method
+		 */
+		showError: function () {
+			this.$( &#39;.pane.content&#39; ).hide();
+			this.$( &#39;.pane.error&#39; ).show();
+			this.show();
+		},
+
+<span id='WikiGrokDialog-method-recordClaim'>		/**
+</span>		 * Record answer in temporary database for analysis.
+		 * Eventually answers will be recorded directly to WikiData.
+		 * Thank the user after recording claims. In case of fail show an error message.
+		 * @method
+		 * @param {Object} options
+		 */
+		recordClaim: function ( options ) {
+			var self = this,
+				claim = {
+					valueid: options.claimId,
+					value: options.claimLabel,
+					correct: options.claimIsCorrect,
+					propid: options.campaign.propertyId,
+					prop: options.campaign.propertyName,
+					campaign: options.campaign.name
+				};
+
+			this.apiWikiGrokResponse.recordClaims( [ claim ] ).done( function () {
+				self.postRecordClaims( options, true );
+			} ).fail( function () {
+				self.handleError( &#39;no-response-cannot-record-user-input&#39; );
+			} );
+		},
+
+<span id='WikiGrokDialog-method-rememberWikiGrokContribution'>		/**
+</span>		 * Save the page title in localStorage so that we don&#39;t show WikiGrok on this page
+		 * the next time the user sees the page.
+		 * @method
+		 */
+		rememberWikiGrokContribution: function () {
+			var pages = $.parseJSON(
+					settings.get( &#39;pagesWithWikiGrokContributions&#39;, false ) || &#39;{}&#39;
+				);
+
+			pages[M.getCurrentPage().title] = true;
+			settings.save( &#39;pagesWithWikiGrokContributions&#39;, JSON.stringify( pages ), false );
+		},
+
+<span id='WikiGrokDialog-method-postRecordClaims'>		/**
+</span>		 * Show a thank you message to the user for their contribution. Also log event.
+		 * @method
+		 * @param {Object} options
+		 * @param {Boolean} answerAttempted has the user attempted to answer or
+		 * just responded with &#39;not sure&#39;?
+		 */
+		postRecordClaims: function ( options, answerAttempted ) {
+			// Remember that the user completed WikiGrok for this page so that we don&#39;t
+			// show it again later.
+			this.rememberWikiGrokContribution();
+			// Choose an appropriate thanks message.
+			if ( answerAttempted ) {
+				options.contentMsg = &#39;You just contributed to Wikipedia, thanks!&#39;;
+				// change tellMoreMsg because we want to show the WikiGrokRoulette menu
+				// item to the user
+				if ( skin.getMainMenu().$el.find( &#39;.wikigrok-roulette&#39; ).length === 1 ) {
+					options.tellMoreMsg = &#39;I want to contribute more!&#39;;
+				}
+			} else {
+				options.contentMsg = &#39;That\&#39;s OK, thanks for taking the time.&#39;;
+			}
+			// Re-render with new content for &#39;Thanks&#39; step.
+			this.template = mw.template.get( &#39;mobile.wikigrok.dialog&#39;, &#39;Thanks.hogan&#39; );
+			this.render( options );
+			// Log the successful completion of WikiGrok task
+			this.log( &#39;widget-impression-success&#39; );
+		},
+
+<span id='WikiGrokDialog-method-onClickTellMore'>		/**
+</span>		 * Open the main navigation drawer and highlight the Contribute menu item.
+		 * If WikiGrok is not enabled in Sidebar, then just show the about dialog.
+		 * @param {jQuery.Event} ev Event object
+		 */
+		onClickTellMore: function ( ev ) {
+			var $wikiGrokRoulette = skin.getMainMenu().$el.find( &#39;.wikigrok-roulette&#39; );
+
+			this.hide();
+			this.log( &#39;widget-click-moreinfo&#39; );
+
+			if ( $wikiGrokRoulette.length === 1 ) {
+				$wikiGrokRoulette.append( &#39;&lt;span&gt;new!&lt;/span&gt;&#39; );
+				skin.getMainMenu().openNavigationDrawer();
+				// do not load the about dialog
+				ev.preventDefault();
+				// stop propagation so that the skin doesn&#39;t close the nav drawer
+				ev.stopPropagation();
+			}
+		},
+
+<span id='WikiGrokDialog-method-isElementInViewport'>		/**
+</span>		 * Check if at least half of the element&#39;s height and half of its width are in viewport
+		 * @method
+		 * @param {jQuery.Object} $el - element that&#39;s being tested
+		 * @return {Boolean}
+		 */
+		isElementInViewport: function ( $el ) {
+			var windowHeight = $window.height(),
+				windowWidth = $window.width(),
+				windowScrollLeft = $window.scrollLeft(),
+				windowScrollTop = $window.scrollTop(),
+				elHeight = $el.height(),
+				elWidth = $el.width(),
+				elOffset = $el.offset();
+			return (
+				( elHeight &gt; 0 &amp;&amp; elWidth &gt; 0 ) &amp;&amp;
+				( windowScrollTop + windowHeight &gt;= elOffset.top + elHeight / 2 ) &amp;&amp;
+				( windowScrollLeft + windowWidth &gt;= elOffset.left + elWidth / 2 ) &amp;&amp;
+				( windowScrollTop &lt;= elOffset.top + elHeight / 2 )
+			);
+		},
+<span id='WikiGrokDialog-method-logWidgetImpression'>		/**
+</span>		 * Log widget-impression if the widget is in viewport.
+		 * Stop listening to events that are namespaced with the taskToken.
+		 * @method
+		 * @param {jQuery.Object} $el WikiGrokDialog element
+		 */
+		logWidgetImpression: function ( $el ) {
+			// detect whether the dialog is in viewport, and
+			// record it if yes
+			if ( !this.isWidgetImpressionLogged ) {
+				if ( this.isElementInViewport( $el ) ) {
+					this.isWidgetImpressionLogged = true;
+					$window.off( &#39;.&#39; + this.defaults.taskToken );
+					this.log( &#39;widget-impression&#39; );
+				}
+			}
+		},
+
+<span id='WikiGrokDialog-method-initializeWidgetImpressionLogging'>		/**
+</span>		 * Create namespaced window.resize and window.scroll events.
+		 * The namespace is a unique taskToken. Log widget-impression once and
+		 * stop listening to events that are namespaced with the taskToken.
+		 * This method is intended to be run only once because we don&#39;t want
+		 * to create and listen to the same events more than once.
+		 * @method
+		 */
+		initializeWidgetImpressionLogging: function () {
+			var self = this;
+			if ( !this.isLogWidgetImpressionInitialized &amp;&amp; !this.isWidgetImpressionLogged ) {
+				// widget specific event listener because there may be more than
+				// one widget on the page
+				// FIXME: listen to page zoom/pinch too?
+				$window.on(
+					&#39;resize.&#39; + self.defaults.taskToken +
+					&#39; scroll.&#39; + self.defaults.taskToken,
+					// debounce
+					function () {
+						clearTimeout( timer );
+						timer = setTimeout( function () {
+							self.logWidgetImpression( self.$el );
+						}, 250 );
+					}
+				);
+				this.isLogWidgetImpressionInitialized = true;
+			}
+			// widget may be in the viewport already
+			this.logWidgetImpression( self.$el );
+		},
+
+<span id='WikiGrokDialog-method-logPageImpression'>		/**
+</span>		 * Log page-impression once
+		 * @method
+		 */
+		logPageImpression: function () {
+			// record page impression
+			if ( !this.isPageImpressionLogged ) {
+				this.isPageImpressionLogged = true;
+				this.log( &#39;page-impression&#39; );
+			}
+		},
+<span id='WikiGrokDialog-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function ( options ) {
+			var self = this;
+
+			// If you&#39;re wondering where the DOM insertion happens, look in wikigrokeval.js.
+
+			// Initialize all the buttons and links
+			// ...for intermediate &#39;Question&#39; step
+			if ( options.beginQuestions ) {
+				this.$( &#39;.wg-buttons .yes&#39; ).on( &#39;click&#39;, function () {
+					self.log( &#39;widget-click-submit&#39; );
+					options.claimIsCorrect = true;
+					self.recordClaim( options );
+				} );
+				this.$( &#39;.wg-buttons .not-sure&#39; ).on( &#39;click&#39;, function () {
+					self.log( &#39;widget-click-submit&#39; );
+					self.postRecordClaims( options, false );
+				} );
+				this.$( &#39;.wg-buttons .no&#39; ).on( &#39;click&#39;, function () {
+					self.log( &#39;widget-click-submit&#39; );
+					options.claimIsCorrect = false;
+					self.recordClaim( options );
+				} );
+			// ...for initial &#39;Intro&#39; step
+			} else {
+				this.$( &#39;.wg-buttons .cancel&#39; ).on( &#39;click&#39;, function () {
+					self.hide();
+					self.log( &#39;widget-click-nothanks&#39; );
+				} );
+				this.$( &#39;.wg-buttons .proceed&#39; ).on( &#39;click&#39;, function () {
+					self.log( &#39;widget-click-accept&#39; );
+					// Proceed with asking the user a metadata question.
+					self.askWikidataQuestion( options );
+				} );
+				// Log more info clicks
+				this.$( &#39;.wg-notice-link&#39; ).on( &#39;click&#39;, function () {
+					self.log( &#39;widget-click-moreinfo&#39; );
+				} );
+			}
+
+			// hide wikigrok after an error has occurred
+			this.$( &#39;.pane.error .close&#39; ).on( &#39;click&#39;, function () {
+				self.hide();
+			} );
+
+			// render() does a &quot;deep copy&quot; $.extend() on the template data, so we need
+			// to reset the buttons after each step (since some steps have fewer
+			// buttons than the initial default).
+			self.options.buttons = [];
+
+			this.reveal( options );
+		},
+
+<span id='WikiGrokDialog-method-reveal'>		/**
+</span>		 * Show WikiGrok dialog
+		 * @method
+		 * @param {Object} options
+		 */
+		reveal: function ( options ) {
+			if ( options.campaign ) {
+				this.show();
+			}
+		},
+<span id='WikiGrokDialog-method-isDrawer'>		/**
+</span>		 * Is this dialog a Drawer?
+		 * @returns {Boolean} Whether it&#39;s a drawer
+		 */
+		isDrawer: function () {
+			return this.options.isDrawer;
+		}
+	} );
+
+	M.define( &#39;modules/wikigrok/WikiGrokDialog&#39;, WikiGrokDialog );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

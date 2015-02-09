@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $, OO ) {
+
+	var EventEmitter,
+		Class = M.require( &#39;Class&#39; );
+
+	// HACK: wrap around oojs&#39;s EventEmitter
+	// This needs some hackery to make oojs&#39;s
+	// and MobileFrontend&#39;s different OO models get along,
+	// and we need to alias one() to once().
+<span id='EventEmitter'>	/**
+</span>	 * A base class with support for event emitting.
+	 * @class EventEmitter
+	 * @extends Class
+	 * @uses OO.EventEmitter
+	**/
+	EventEmitter = Class.extend( $.extend( {
+		initialize: OO.EventEmitter
+	}, OO.EventEmitter.prototype ) );
+
+	M.define( &#39;eventemitter&#39;, EventEmitter );
+	// FIXME: if we want more of M&#39;s functionality in loaded in &lt;head&gt;,
+	// move this to a separate file
+	$.extend( mw.mobileFrontend, new EventEmitter() );
+
+}( mw.mobileFrontend, jQuery, OO ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var WikiGrokDialogB = M.require( &#39;modules/wikigrok/WikiGrokDialogB&#39; ),
+		wikiGrokRoulette = M.require( &#39;modules/wikiGrokRoulette/wikiGrokRoulette&#39; ),
+		Drawer = M.require( &#39;Drawer&#39; ),
+		browser = M.require( &#39;browser&#39; ),
+		WikiGrokDialogC;
+
+<span id='WikiGrokDialogC'>	/**
+</span>	 * WikiGrok that&#39;s fixed at the bottom of the page.
+	 * @class WikiGrokDialogC
+	 * @extends WikiGrokDialogB
+	 */
+	WikiGrokDialogC = WikiGrokDialogB.extend( {
+		appendToElement: Drawer.prototype.appendToElement,
+		className: WikiGrokDialogB.prototype.className + &#39; &#39; + Drawer.prototype.className,
+		version: &#39;c&#39;,
+		defaults: $.extend( WikiGrokDialogB.prototype.defaults, {
+			thanksMsg: &#39;You just made Wikipedia a little better, thanks! But wait, there is more.&#39;,
+			isDrawer: true
+		} ),
+<span id='WikiGrokDialogC-method-postRecordClaims'>		/**
+</span>		 * Load the next page if available.
+		 * Show badge when the user reaches a milestone.
+		 * @inheritdoc
+		 * @method
+		 */
+		postRecordClaims: function () {
+			var self = this,
+				badgeLevels = [ 1, 3, 5, 10, 20, 50, 100 ],
+				showNext = true,
+				responseText,
+				responseCount;
+
+			self.$( &#39;.wg-content, .footer&#39; ).hide();
+			self.$( &#39;.spinner&#39; ).show();
+
+			// Count responses if local storage supported
+			if ( browser.supportsLocalStorage ) {
+				responseCount = localStorage.getItem( &#39;wikiGrokResponseCount&#39; );
+				// Increment claim response count, null if no responses
+				if ( responseCount !== null ) {
+					responseCount++;
+				} else {
+					responseCount = 1;
+				}
+				// Save response count
+				localStorage.setItem( &#39;wikiGrokResponseCount&#39;, responseCount );
+
+				// Add badge if responseCount is at a badge level
+				if ( $.inArray( responseCount, badgeLevels ) !== -1 ) {
+					showNext = false;
+					responseText = &#39;Good going! &lt;br&gt; You just completed &#39; + responseCount + &#39; task&#39;;
+					if ( responseCount === 1 ) {
+						responseText += &#39;.&#39;;
+					} else {
+						responseText += &#39;s.&#39;;
+					}
+					self.$( &#39;.spinner&#39; ).hide();
+					self.$( &#39;.wg-link&#39; ).empty().addClass( &#39;wg-badge-&#39; + responseCount ).show();
+					self.$( &#39;.wg-content&#39; )
+						.html( responseText )
+						.show();
+					// let the user enjoy the badge for 2 seconds
+					setTimeout( function () {
+						wikiGrokRoulette.navigateToNextPage();
+					}, 2000 );
+				}
+			}
+			if ( showNext ) {
+				wikiGrokRoulette.navigateToNextPage();
+			}
+		},
+
+<span id='WikiGrokDialogC-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function ( options ) {
+			var self = this;
+
+			Drawer.prototype.postRender.apply( this, arguments );
+
+			options.beginQuestions = true;
+			WikiGrokDialogB.prototype.postRender.apply( this, arguments );
+
+			self.askWikidataQuestion( options );
+			this.show();
+
+			// Silently fetch the next page
+			wikiGrokRoulette.getNextPage();
+		}
+	} );
+
+	M.define( &#39;modules/wikigrok/WikiGrokDialogC&#39;, WikiGrokDialogC );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

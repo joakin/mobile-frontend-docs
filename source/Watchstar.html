@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+
+	var Watchstar,
+		View = M.require( &#39;View&#39; ),
+		WatchstarApi = M.require( &#39;modules/watchstar/WatchstarApi&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		watchIcon = new Icon( {
+			name: &#39;watch&#39;,
+			additionalClassNames: &#39;icon-32px watch-this-article&#39;
+		} ),
+		watchedIcon = new Icon( {
+			name: &#39;watched&#39;,
+			additionalClassNames: &#39;icon-32px watch-this-article&#39;
+		} ),
+		toast = M.require( &#39;toast&#39; ),
+		user = M.require( &#39;user&#39; ),
+		api = new WatchstarApi(),
+		CtaDrawer = M.require( &#39;CtaDrawer&#39; );
+
+<span id='Watchstar'>	/**
+</span>	 * A clickable watchstar
+	 * @class Watchstar
+	 * @extends View
+	 * @uses CtaDrawer
+	 * @uses Icon
+	 * @uses WatchstarApi
+	 * @uses Toast
+	 */
+	Watchstar = View.extend( {
+<span id='Watchstar-property-events'>		/**
+</span>		 * @inheritdoc
+		 */
+		events: {
+			// Disable clicks on original link
+			&#39;click a&#39;: &#39;onLinksClick&#39;,
+			click: &#39;onStatusToggle&#39;
+		},
+<span id='Watchstar-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {Page} defaults.page Current page.
+		 */
+		defaults: {
+			page: M.getCurrentPage()
+		},
+		tagName: &#39;div&#39;,
+		className: watchIcon.getClassName(),
+		template: mw.template.compile( &#39;&lt;span&gt;{{tooltip}}&lt;/span&gt;&#39;, &#39;hogan&#39; ),
+<span id='Watchstar-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			var self = this,
+				_super = View.prototype.initialize,
+				page = options.page;
+
+			this.drawer = new CtaDrawer( {
+				content: mw.msg( &#39;mobile-frontend-watchlist-cta&#39; ),
+				queryParams: {
+					campaign: &#39;mobile_watchPageActionCta&#39;,
+					returntoquery: &#39;article_action=watch&#39;
+				}
+			} );
+
+			if ( user.isAnon() ) {
+				_super.call( self, options );
+			} else if ( options.isWatched === undefined ) {
+				api.load( page.getId() ).done( function () {
+					options.isWatched = api.isWatchedPage( page );
+					_super.call( self, options );
+				} );
+			} else {
+				api.setWatchedPage( options.page, options.isWatched );
+				_super.call( self, options );
+			}
+		},
+<span id='Watchstar-method-preRender'>		/** @inheritdoc */
+</span>		preRender: function ( options ) {
+			options.tooltip = options.isWatched ? mw.msg( &#39;unwatchthispage&#39; ) : mw.msg( &#39;watchthispage&#39; );
+		},
+<span id='Watchstar-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function ( options ) {
+			var self = this,
+				unwatchedClass = watchIcon.getGlyphClassName(),
+				watchedClass = watchedIcon.getGlyphClassName(),
+				page = options.page,
+				$el = self.$el;
+
+			// add tooltip to the div, not the &lt;a&gt; inside because that the &lt;a&gt; doesn&#39;t have dimensions
+			this.$el.attr( &#39;title&#39;, options.tooltip );
+
+			// Add watched class if necessary
+			if ( !user.isAnon() &amp;&amp; api.isWatchedPage( page ) ) {
+				$el.addClass( watchedClass ).removeClass( unwatchedClass );
+			} else {
+				$el.addClass( unwatchedClass ).removeClass( watchedClass );
+			}
+			$el.removeClass( &#39;hidden&#39; );
+		},
+
+<span id='Watchstar-method-onLinksClick'>		/**
+</span>		 * Prevent default on incoming events
+		 * @param {jQuery.Event} ev
+		 */
+		onLinksClick: function ( ev ) {
+			ev.preventDefault();
+		},
+
+<span id='Watchstar-method-onStatusToggle'>		/**
+</span>		 * Event handler for clicking on watch star.
+		 * Make an API request if user is not anonymous.
+		 * @method
+		 */
+		onStatusToggle: function () {
+			var self = this,
+				page = this.options.page,
+				checker;
+			if ( user.isAnon() ) {
+				this.drawer.show();
+			} else {
+				checker = setInterval( function () {
+					toast.show( mw.msg( &#39;mobile-frontend-watchlist-please-wait&#39; ) );
+				}, 1000 );
+				api.toggleStatus( page ).always( function () {
+					clearInterval( checker );
+				} ).done( function () {
+					if ( api.isWatchedPage( page ) ) {
+						self.options.isWatched = true;
+						self.render();
+<span id='Watchstar-event-watch'>						/**
+</span>						 * @event watch
+						 * Fired when the watch star is changed to watched status
+						 */
+						self.emit( &#39;watch&#39; );
+						toast.show( mw.msg( &#39;mobile-frontend-watchlist-add&#39;, page.title ) );
+					} else {
+						self.options.isWatched = false;
+<span id='Watchstar-event-unwatch'>						/**
+</span>						 * @event unwatch
+						 * Fired when the watch star is changed to unwatched status
+						 */
+						self.emit( &#39;unwatch&#39; );
+						self.render();
+						toast.show( mw.msg( &#39;mobile-frontend-watchlist-removed&#39;, page.title ) );
+					}
+				} ).fail( function () {
+					toast.show( &#39;mobile-frontend-watchlist-error&#39;, &#39;error&#39; );
+				} );
+			}
+		}
+
+	} );
+
+	M.define( &#39;modules/watchstar/Watchstar&#39;, Watchstar );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

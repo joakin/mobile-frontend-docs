@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var EventEmitter = M.require( &#39;eventemitter&#39; ),
+		View,
+		// Cached regex to split keys for `delegate`.
+		delegateEventSplitter = /^(\S+)\s*(.*)$/,
+		idCounter = 0;
+
+<span id='global-method-uniqueId'>	/**
+</span>	 * Generate a unique integer id (unique within the entire client session).
+	 * Useful for temporary DOM ids.
+	 * @ignore
+	 * @param {String} prefix Prefix to be used when generating the id.
+	 * @returns {String}
+	 */
+	function uniqueId( prefix ) {
+		var id = ( ++idCounter ).toString();
+		return prefix ? prefix + id : id;
+	}
+
+<span id='View'>	/**
+</span>	 * Should be extended using extend().
+	 *
+	 * When options contains el property, this.$el in the constructed object
+	 * will be set to the corresponding jQuery object. Otherwise, this.$el
+	 * will be an empty div.
+	 *
+	 * When extended using extend(), if the extended prototype contains
+	 * template property, this.$el will be filled with rendered template (with
+	 * options parameter used as template data).
+	 *
+	 * template property can be a string which will be passed to mw.template.compile()
+	 * or an object that has a render() function which accepts an object with
+	 * template data as its argument (similarly to an object created by
+	 * mw.template.compile()).
+	 *
+	 * You can also define a defaults property which should be an object
+	 * containing default values for the template (if they&#39;re not present in
+	 * the options parameter).
+	 *
+	 * If this.$el is not a jQuery object bound to existing DOM element, the
+	 * view can be attached to an element using appendTo(), prependTo(),
+	 * insertBefore(), insertAfter() proxy functions.
+	 *
+	 * append(), prepend(), before(), after() can be used to modify $el. on()
+	 * can be used to bind events.
+	 *
+	 * You can also use declarative DOM events binding by specifying an `events`
+	 * map on the class. The keys will be &#39;event selector&#39; and the value can be
+	 * either the name of a method to call, or a function. All methods and
+	 * functions will be executed on the context of the View.
+	 *
+	 * Inspired from Backbone.js
+	 * https://github.com/jashkenas/backbone/blob/master/backbone.js#L1128
+	 *
+	 *     @example
+	 *     &lt;code&gt;
+	 *     var MyComponent = View.extend( {
+	 *       events: {
+	 *	       &#39;mousedown .title&#39;: &#39;edit&#39;,
+	 *	       &#39;click .button&#39;: &#39;save&#39;,
+	 *	       &#39;click .open&#39;: function(e) { ... }
+	 *       },
+	 *       edit: function ( ev ) {
+	 *         //...
+	 *       },
+	 *       save: function ( ev ) {
+	 *         //...
+	 *       }
+	 *     } );
+	 *     &lt;/code&gt;
+	 *
+	 * @class View
+	 * @extends EventEmitter
+	 * @param {Object} options Options for the view, containing the el or
+	 * template data or any other information you want to use in the view.
+	 * Example:
+	 *     @example
+	 *     &lt;pre&gt;
+	 *     var View, Section, section;
+	 *     View = M.require( &#39;View&#39; );
+	 *     Section = View.extend( {
+	 *       template: mw.template.compile( &quot;&amp;lt;h2&amp;gt;{{title}}&amp;lt;/h2&amp;gt;&quot; ),
+	 *     } );
+	 *     section = new Section( { title: &#39;Test&#39;, text: &#39;Test section body&#39; } );
+	 *     section.appendTo( &#39;body&#39; );
+	 *     &lt;/pre&gt;
+	 */
+	View = EventEmitter.extend( {
+<span id='View-property-String'>		/**
+</span>		 * Name of tag that contains the rendered template
+		 * @property String
+		 */
+		tagName: &#39;div&#39;,
+
+<span id='View-property-template'>		/**
+</span>		 * @property {Mixed}
+		 * Specifies the template used in render(). Object|String|HoganTemplate
+		 */
+		template: undefined,
+
+<span id='View-property-templatePartials'>		/**
+</span>		 * Specifies partials (sub-templates) for the main template. Example:
+		 *
+		 *     @example
+		 *     // example content for the &quot;some&quot; template (sub-template will be
+		 *     // inserted where {{&gt;content}} is):
+		 *     // &lt;h1&gt;Heading&lt;/h1&gt;
+		 *     // {{&gt;content}}
+		 *
+		 *     var SomeView = View.extend( {
+		 *     template: M.template.get( &#39;some.hogan&#39; ),
+		 *     templatePartials: { content: M.template.get( &#39;sub.hogan&#39; ) }
+		 *     }
+		 *
+		 * @property {Object}
+		 */
+		templatePartials: {},
+
+<span id='View-cfg-defaults'>		/**
+</span>		 * A set of default options that are merged with options passed into the initialize function.
+		 *
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {jQuery.Object|String} [defaults.el] jQuery selector to use for rendering.
+		 */
+		defaults: {},
+
+<span id='View-property-events'>		/**
+</span>		 * Default events map
+		 */
+		events: null,
+
+<span id='View-method-initialize'>		/**
+</span>		 * Run once during construction to set up the View
+		 * @method
+		 * @param {Object} options Object passed to the constructor.
+		 */
+		initialize: function ( options ) {
+			EventEmitter.prototype.initialize.apply( this, arguments );
+			this.defaults = $.extend( {}, this._parent.defaults, this.defaults );
+			this.templatePartials = $.extend( {}, this._parent.templatePartials, this.templatePartials );
+			options = $.extend( {}, this.defaults, options );
+			if ( options.el ) {
+				this.$el = $( options.el );
+			} else {
+				this.$el = $( &#39;&lt;&#39; + this.tagName + &#39;&gt;&#39; );
+			}
+			this.$el.addClass( this.className );
+			// FIXME: If this becomes a default should become part of className property.
+			this.$el.addClass( &#39;view-border-box&#39; );
+
+			// TODO: if template compilation is too slow, don&#39;t compile them on a
+			// per object basis, but don&#39;t worry about it now (maybe add cache to
+			// M.template.compile())
+			if ( typeof this.template === &#39;string&#39; ) {
+				this.template = mw.template.compile( this.template );
+			}
+
+			this.options = options;
+			this.render( options );
+
+			// Assign a unique id for dom events binding/unbinding
+			this.cid = uniqueId( &#39;view&#39; );
+			this.delegateEvents();
+		},
+
+<span id='View-method-preRender'>		/**
+</span>		 * Function called before the view is rendered. Can be redefined in
+		 * objects that extend View.
+		 *
+		 * @method
+		 * @param {Object} options Object passed to the constructor.
+		 */
+		preRender: $.noop,
+
+<span id='View-method-postRender'>		/**
+</span>		 * Function called after the view is rendered. Can be redefined in
+		 * objects that extend View.
+		 *
+		 * @method
+		 * @param {Object} options Object passed to the constructor.
+		 */
+		postRender: $.noop,
+
+<span id='View-method-render'>		/**
+</span>		 * Fill this.$el with template rendered using data if template is set.
+		 *
+		 * @method
+		 * @param {Object} data Template data.
+		 */
+		render: function ( data ) {
+			data = $.extend( true, {}, this.options, data );
+			this.preRender( data );
+			if ( this.template ) {
+				this.$el.html( this.template.render( data, this.templatePartials ) );
+			}
+			this.postRender( data );
+
+			return this;
+		},
+
+<span id='View-method-S-'>		/**
+</span>		 * Wraps this.$el.find, so that you can search for elements in the view&#39;s
+		 * ($el&#39;s) scope.
+		 *
+		 * @method
+		 * @param {String} query A jQuery CSS selector.
+		 * @return {jQuery.Object} jQuery object containing results of the search.
+		 */
+		$: function ( query ) {
+			return this.$el.find( query );
+		},
+
+<span id='View-method-delegateEvents'>		/**
+</span>		 * Set callbacks, where `this.events` is a hash of
+		 *
+		 * {&quot;event selector&quot;: &quot;callback&quot;}
+		 *
+		 * {
+		 *	&#39;mousedown .title&#39;: &#39;edit&#39;,
+		 *	&#39;click .button&#39;: &#39;save&#39;,
+		 *	&#39;click .open&#39;: function(e) { ... }
+		 * }
+		 *
+		 * pairs. Callbacks will be bound to the view, with `this` set properly.
+		 * Uses event delegation for efficiency.
+		 * Omitting the selector binds the event to `this.el`.
+		 *
+		 * @param {Object} events Optionally set this events instead of the ones on this.
+		 */
+		delegateEvents: function ( events ) {
+			var match, key, method;
+			// Take either the events parameter or the this.events to process
+			events = events || this.events;
+			if ( events ) {
+				// Remove current events before re-binding them
+				this.undelegateEvents();
+				for ( key in events ) {
+					method = events[ key ];
+					// If the method is a string name of this.method, get it
+					if ( !$.isFunction( method ) ) {
+						method = this[ events[ key ] ];
+					}
+					if ( method ) {
+						// Extract event and selector from the key
+						match = key.match( delegateEventSplitter );
+						this.delegate( match[ 1 ], match[ 2 ], $.proxy( method, this ) );
+					}
+				}
+			}
+		},
+
+<span id='View-method-delegate'>		/**
+</span>		 * Add a single event listener to the view&#39;s element (or a child element
+		 * using `selector`). This only works for delegate-able events: not `focus`,
+		 * `blur`, and not `change`, `submit`, and `reset` in Internet Explorer.
+		 *
+		 * @param {String} eventName
+		 * @param {String} selector
+		 * @param {Function} listener
+		 */
+		delegate: function ( eventName, selector, listener ) {
+			this.$el.on( eventName + &#39;.delegateEvents&#39; + this.cid, selector,
+				listener );
+		},
+
+<span id='View-method-undelegateEvents'>		/**
+</span>		 * Clears all callbacks previously bound to the view by `delegateEvents`.
+		 * You usually don&#39;t need to use this, but may wish to if you have multiple
+		 * views attached to the same DOM element.
+		 */
+		undelegateEvents: function () {
+			if ( this.$el ) {
+				this.$el.off( &#39;.delegateEvents&#39; + this.cid );
+			}
+		},
+
+<span id='View-method-undelegate'>		/**
+</span>		 * A finer-grained `undelegateEvents` for removing a single delegated event.
+		 * `selector` and `listener` are both optional.
+		 *
+		 * @param {String} eventName
+		 * @param {String} selector
+		 * @param {Function} listener
+		 */
+		undelegate: function ( eventName, selector, listener ) {
+			this.$el.off( eventName + &#39;.delegateEvents&#39; + this.cid, selector,
+				listener );
+		}
+
+	} );
+
+	$.each( [
+		&#39;append&#39;,
+		&#39;prepend&#39;,
+		&#39;appendTo&#39;,
+		&#39;prependTo&#39;,
+		&#39;after&#39;,
+		&#39;before&#39;,
+		&#39;insertAfter&#39;,
+		&#39;insertBefore&#39;,
+		&#39;remove&#39;,
+		&#39;detach&#39;
+	], function ( i, prop ) {
+<span id='global-method-prototype[prop]'>		/** @ignore **/
+</span>		View.prototype[prop] = function () {
+			this.$el[prop].apply( this.$el, arguments );
+			return this;
+		};
+	} );
+
+	M.define( &#39;View&#39;, View );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

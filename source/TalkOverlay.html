@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	M.require( &#39;context&#39; ).assertMode( [ &#39;beta&#39;, &#39;alpha&#39; ] );
+
+	var
+		Overlay = M.require( &#39;Overlay&#39; ),
+		Page = M.require( &#39;Page&#39; ),
+		pageApi = M.require( &#39;pageApi&#39; ),
+		user = M.require( &#39;user&#39; ),
+<span id='TalkOverlay'>		/**
+</span>		 * Overlay for talk page
+		 * @extends Overlay
+		 * @class TalkOverlay
+		 * @uses Page
+		 * @uses TalkSectionOverlay
+		 * @uses TalkSectionAddOverlay
+		 */
+		TalkOverlay = Overlay.extend( {
+			templatePartials: $.extend( {}, Overlay.prototype.templatePartials, {
+				content: mw.template.get( &#39;mobile.talk.overlays&#39;, &#39;content.hogan&#39; ),
+				footer: mw.template.get( &#39;mobile.overlays&#39;, &#39;OverlayFooterLink.hogan&#39; )
+			} ),
+<span id='TalkOverlay-cfg-defaults'>			/**
+</span>			 * @inheritdoc
+			 * @cfg {Object} defaults Default options hash.
+			 * @cfg {Array} defaults.headings A list of {Section} objects to render heading links
+			 * for. If not set ajax request will be performed.
+			 * @cfg {String} defaults.heading Heading for talk overlay.
+			 * @cfg {String} defaults.leadHeading Heading for a discussion which has no heading
+			 * (lead section of talk page).
+			 * @cfg {String} defaults.headerButtonsListClassName Class name of the header buttons
+			 * list
+			 * @cfg {Array} defaults.headerButtons Objects that will be used as defaults for
+			 * generating header buttons. Default list includes an &#39;add&#39; button, which opens
+			 * a new talk overlay.
+			 * @cfg {String} defaults.linkMsg Used as label for link to the talk page
+			 * (Talk:ArticleName) in Talk Overlay.
+			 * @cfg {String} defaults.linkClass Class name of defaults.linkMsg.
+			 */
+			defaults: {
+				headings: undefined,
+				heading: &#39;&lt;strong&gt;&#39; + mw.msg( &#39;mobile-frontend-talk-overlay-header&#39; ) + &#39;&lt;/strong&gt;&#39;,
+				leadHeading: mw.msg( &#39;mobile-frontend-talk-overlay-lead-header&#39; ),
+				headerButtonsListClassName: &#39;overlay-action&#39;,
+				headerButtons: [ {
+					href: &#39;#/talk/new&#39;,
+					className: &#39;add continue hidden&#39;,
+					msg: mw.msg( &#39;mobile-frontend-talk-add-overlay-submit&#39; )
+				} ],
+				linkMsg: mw.msg( &#39;mobile-frontend-talk-fullpage&#39; ),
+				linkClass: &#39;talk-fullpage&#39;
+			},
+
+<span id='TalkOverlay-method-postRender'>			/** @inheritdoc */
+</span>			postRender: function ( options ) {
+				Overlay.prototype.postRender.apply( this, arguments );
+				this.$board = this.$( &#39;.board&#39; );
+				this.$( &#39;.talk-fullpage&#39; ).attr( &#39;href&#39;, mw.util.getUrl( options.title ) )
+					.removeClass( &#39;hidden&#39; );
+				if ( !options.headings ) {
+					this._loadContent( options );
+				}
+				this._setupAddDiscussionButton( options );
+				this._showHidden( &#39;.initial-header&#39; );
+			},
+
+<span id='TalkOverlay-method-showSpinner'>			/**
+</span>			 * Show a loading spinner
+			 * @method
+			 */
+			showSpinner: function () {
+				this.$board.hide();
+				Overlay.prototype.showSpinner.apply( this, arguments );
+			},
+
+<span id='TalkOverlay-method-clearSpinner'>			/**
+</span>			 * Hide the loading spinner
+			 * @method
+			 */
+			clearSpinner: function () {
+				Overlay.prototype.clearSpinner.apply( this, arguments );
+				this.$board.show();
+			},
+
+<span id='TalkOverlay-method-_loadContent'>			/**
+</span>			 * Load content of the talk page via PageApi
+			 * @method
+			 * @param {Object} options for the overlay
+			 * @private
+			 */
+			_loadContent: function ( options ) {
+				var self = this;
+
+				// show a spinner
+				this.showSpinner();
+
+				// clear actual content, if any
+				this.$( &#39;.topic-title-list&#39; ).empty();
+
+				// FIXME: use Page&#39;s mechanisms for retrieving page data instead
+				pageApi.getPage( options.title ).fail( function ( resp ) {
+					// If the API returns the error code &#39;missingtitle&#39;, that means the
+					// talk page doesn&#39;t exist yet.
+					if ( resp === &#39;missingtitle&#39; ) {
+						// Create an empty page for new pages
+						self._addContent( {
+							title: options.title,
+							sections: []
+						}, options );
+					} else {
+						// If the API request fails for any other reason, load the talk
+						// page manually rather than leaving the spinner spinning.
+						window.location = mw.util.getUrl( options.title );
+					}
+				} ).done( function ( pageData ) {
+					self._addContent( pageData, options );
+				} );
+			},
+
+<span id='TalkOverlay-method-_addContent'>			/**
+</span>			 * Adds the content received from _loadContent to the Overlay and re-renders it.
+			 * @method
+			 * @private
+			 * @param {Object} pageData As returned from PageApi#getPage
+			 * @param {Object} options for the overlay
+			 */
+			_addContent: function ( pageData, options ) {
+				var page = new Page( pageData ),
+					sections = page.getSections();
+
+				this.page = page;
+
+				options.explanation = sections.length &gt; 0 ? mw.msg( &#39;mobile-frontend-talk-explained&#39; ) :
+					mw.msg( &#39;mobile-frontend-talk-explained-empty&#39; );
+				options.headings = sections;
+
+				// content is there so re-render and hide the spinner
+				this.render( options );
+				this.clearSpinner();
+			},
+<span id='TalkOverlay-method-_setupAddDiscussionButton'>			/**
+</span>			 * Shows the add topic button to logged in users.
+			 * Ensures the overlay refreshes when a discussion is added.
+			 * @method
+			 * @private
+			 */
+			_setupAddDiscussionButton: function () {
+				var $add = this.$( &#39;.overlay-action .add&#39; );
+				M.on( &#39;talk-discussion-added&#39;, $.proxy( this, &#39;_loadContent&#39;, this.options ) );
+				if ( !user.isAnon() ) {
+					$add.removeClass( &#39;hidden&#39; );
+				} else {
+					$add.remove();
+				}
+			}
+		} );
+
+	M.define( &#39;modules/talk/TalkOverlay&#39;, TalkOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

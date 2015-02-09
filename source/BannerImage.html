@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var BannerImage,
+		md5fn = M.require( &#39;hex_md5&#39; ),
+		WikiDataApi = M.require( &#39;modules/wikigrok/WikiDataApi&#39; ),
+		View = M.require( &#39;View&#39; ),
+		config = mw.config.get( &#39;wgWikiBasePropertyConfig&#39; ),
+		icons = M.require( &#39;icons&#39; ),
+		ratio = 16 / 9;
+
+<span id='global-method-getImageWidth'>	/**
+</span>	 * Gets a width that is close to the current screen width
+	 * Limits the amount of thumbnail images being generated on the server
+	 * It rounds to upper limit to try to avoid upscaling
+	 * @ignore
+	 * @param {Number} screenWidth to optimise for
+	 *
+	 * @returns {Number} pixel width of the image
+	 */
+	function getImageWidth( screenWidth ) {
+		var i = 0,
+			// Thumbnail widths
+			widths = [ 320, 360, 380, 400, 420, 460, 480, 640, 680, 720, 736, 768 ],
+			width;
+
+		for ( i; i &lt; widths.length; i++ ) {
+			width = widths[ i ];
+			if ( screenWidth &lt;= width ) {
+				break;
+			}
+		}
+		return width;
+	}
+
+<span id='HeaderImage'>	/**
+</span>	 * @class HeaderImage
+	 * Class in charge of a Header image. It fills up the source url, can try
+	 * to load it, adjust its width/height depending on ratio, and modify the
+	 * source url for use on the BannerImage class.
+	 */
+	function HeaderImage( title, desiredWidth ) {
+		desiredWidth = getImageWidth( desiredWidth || $( window ).width() );
+		this.title = title;
+		this.width = desiredWidth;
+		this.height = this.width / ratio;
+		this.src = this.getImageUrl( title, desiredWidth );
+	}
+
+<span id='HeaderImage-method-getImageUrl'>	/**
+</span>	 * Given a title work out the url to the thumbnail for that image
+	 * FIXME: This should not make its way into stable.
+	 * NOTE: Modified/Borrowed from from Infobox.js
+	 * @method
+	 * @param {String} title of file page without File: prefix
+	 * @param {Number|String} desiredWidth to load thumbnail for.
+	 * @return {String} url corresponding to thumbnail (size 160px)
+	 */
+	HeaderImage.prototype.getImageUrl = function ( title, desiredWidth ) {
+		var md5, filename, source,
+			path = &#39;https://upload.wikimedia.org/wikipedia/commons/&#39;;
+		// uppercase first letter in file name
+		filename = title.charAt( 0 ).toUpperCase() + title.substr( 1 );
+		// replace spaces with underscores
+		filename = filename.replace( / /g, &#39;_&#39; );
+		md5 = md5fn( filename );
+		source = md5.charAt( 0 ) + &#39;/&#39; + md5.substr( 0, 2 ) + &#39;/&#39; + filename;
+		if ( filename.substr( filename.length - 3 ) !== &#39;svg&#39; ) {
+			return path + &#39;thumb/&#39; + source + &#39;/&#39; + desiredWidth + &#39;px-&#39; + filename;
+		} else {
+			return path + source;
+		}
+	};
+
+<span id='HeaderImage-method-updateWidthAndSrc'>	/**
+</span>	 * Change width of the image (and update src url)
+	 *
+	 * @method
+	 * @param {Number} newWidth New width in px
+	 */
+	HeaderImage.prototype.updateWidthAndSrc = function ( newWidth ) {
+		newWidth = getImageWidth( newWidth );
+		this.src = this.src.replace( this.width + &#39;px&#39;, newWidth + &#39;px&#39; );
+		this.width = newWidth;
+	};
+
+<span id='HeaderImage-method-load'>	/**
+</span>	 * Try to load image and resolve or fail when it loads / or not.
+	 * @returns {jQuery.Deferred}
+	 */
+	HeaderImage.prototype.load = function () {
+		var loaded = $.Deferred(),
+			self = this;
+		// Try to load it
+		// There is an issue with reliably knowing if the
+		// original image is wider than the thumbnail.
+		// If so, that image will fail to load.
+		$( &#39;&lt;img&gt;&#39; )
+			.attr( &#39;src&#39;, this.src )
+			.load( function () {
+				self.setDimensions( $( this ).width(), $( this ).height() );
+				$( this ).remove();
+				loaded.resolve( self );
+			} )
+			.error( function () {
+				$( this ).remove();
+				loaded.reject();
+			} )
+			.appendTo( $( &#39;body&#39; ) )
+			.hide();
+		return loaded;
+	};
+
+<span id='HeaderImage-method-setDimensions'>	/**
+</span>	 * Set dimensions and ratio of the real (loaded) image
+	 * @method
+	 * @param {Number} width Width in pixels of the loaded image
+	 * @param {Number} height Height in pixels of the loaded image
+	 */
+	HeaderImage.prototype.setDimensions = function ( width, height ) {
+		this.dimensions = {
+			width: width,
+			height: height
+		};
+		this.imageRatio = width / height;
+	};
+
+<span id='HeaderImage-method-widerThanRatio'>	/**
+</span>	 * Returns true if dimensions are wider than ratio
+	 *
+	 * @returns {Boolean} If is wider than the desired ratio or not
+	 */
+	HeaderImage.prototype.widerThanRatio = function () {
+		if ( this.dimensions.width / this.dimensions.height &gt; ratio ) {
+			return true;
+		}
+		return false;
+	};
+
+<span id='HeaderImage-method-adjustSize'>	/**
+</span>	 * Looking into the real image dimensions adjust width and height of the
+	 * image to fit the ratio and avoid upscaling if image is wider than desired
+	 * ratio
+	 */
+	HeaderImage.prototype.adjustSize = function () {
+		// If the image is wider than the ratio we want, there will be
+		// upscaling. Change width to a bigger image.
+		if ( this.widerThanRatio() ) {
+			// Width of this image we need is the height we want by the real ratio of
+			// the image (to fill the height for the device width)
+			this.updateWidthAndSrc( this.height * this.imageRatio );
+		}
+	};
+
+<span id='BannerImage'>	/**
+</span>	 * A WikiData banner image at the head of the page
+	 * @class BannerImage
+	 * @extends View
+	 */
+	BannerImage = View.extend( {
+		className: &#39;wikidata-banner-image&#39;,
+<span id='BannerImage-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.spinner HTML of the spinner icon.
+		 */
+		defaults: {
+			spinner: icons.spinner().toHtmlString()
+		},
+<span id='BannerImage-method-initialize'>		/**
+</span>		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			this.api = new WikiDataApi( {
+				itemId: options.itemId
+			} );
+			this.images = [];
+
+			View.prototype.initialize.apply( this, options );
+		},
+<span id='BannerImage-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function () {
+			var self = this;
+
+			this.api.getClaims().done( function ( claims ) {
+				var claim,
+					imgId = config.bannerImage,
+					commonsCategory = config.commonsCategory;
+
+				if ( claims.entities ) {
+					if ( claims.entities.hasOwnProperty( imgId ) &amp;&amp;
+						claims.entities[imgId].length ) {
+						// Parse data from the API into Image objects.
+						$.each( claims.entities[imgId], function ( index, image ) {
+							if ( image.mainsnak.datatype === &#39;commonsMedia&#39; ) {
+								self.addImage( image.mainsnak.datavalue.value );
+							}
+						} );
+
+						// Start trying to load images sequentially from most important to
+						// least.
+						self.loadImage( 0 );
+					}
+					if ( claims.entities.hasOwnProperty( commonsCategory ) ) {
+						claim = claims.entities[commonsCategory][0];
+						$( &#39;&lt;a&gt;&#39; ).attr( &#39;href&#39;, &#39;#/commons-category/&#39; +  claim.mainsnak.datavalue.value )
+							.text( &#39;View on Commons&#39; ).appendTo( self.$el );
+					}
+				}
+			} );
+		},
+<span id='BannerImage-method-addImage'>		/**
+</span>		 * Add an image to the `images` list.
+		 * @param {String} title Title of the image
+		 */
+		addImage: function ( title ) {
+			this.images.push( new HeaderImage( title ) );
+		},
+<span id='BannerImage-method-loadImage'>		/**
+</span>		 * Async series image loading loop.
+		 *
+		 * Start trying to get images in series from `this.images`. When we get
+		 * a valid one, don&#39;t load more and go to `this.imageLoaded` to set it as
+		 * the banner
+		 * @param {Number} index Image index to try and load
+		 */
+		loadImage: function ( index ) {
+
+			// If we have gone through all images, and nothing got done, then
+			// self-destruct!
+			if ( index &gt;= this.images.length ) {
+				this.remove();
+				return;
+			}
+
+			// Try to load the current image
+			var image = this.images[ index ],
+				loading = image.load(),
+				self = this;
+
+			// If the image loaded, we are done, leave to this.imageLoaded
+			loading.done( function () {
+				self.imageLoaded( image );
+			} );
+
+			// If the image didn&#39;t load, then try with the next one
+			loading.fail( function () {
+				self.loadImage( ++index );
+			} );
+		},
+<span id='BannerImage-method-imageLoaded'>		/**
+</span>		 * When we have a valid image, set it as background, bind resize events.
+		 * @method
+		 * @param {HeaderImage} image Image object that loaded
+		 */
+		imageLoaded: function ( image ) {
+			var self = this;
+
+			// Adjust image src size in case it is too wide.
+			image.adjustSize();
+
+			// Set image in header
+			this.$el
+				.css( {
+					&#39;background-image&#39;: &#39;url(&quot;&#39; + image.src + &#39;&quot;)&#39;
+				} )
+				.show();
+			this.resizeImage();
+
+			// Set resize events once
+			if ( !this.resizeEventsSet ) {
+				this.resizeEventsSet = true;
+				M.on( &#39;resize&#39;, function () {
+					self.resizeImage();
+				} );
+			}
+		},
+<span id='BannerImage-method-resizeImage'>		/**
+</span>		 * Resize image to maintain aspect ratio
+		 */
+		resizeImage: function () {
+			this.$el
+				.css( {
+					// Maintain 16:9 ratio
+					// Max height is enforced with CSS
+					height: this.$el.width() * ( 1 / ratio )
+				} );
+		}
+	} );
+
+	M.define( &#39;modules/bannerImage/BannerImage&#39;, BannerImage );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+
+	var ProgressBar,
+		View = M.require( &#39;View&#39; );
+
+<span id='ProgressBar'>	/**
+</span>	 * Progress bar
+	 * @class ProgressBar
+	 * @extends View
+	 */
+	ProgressBar = View.extend( {
+		className: &#39;progress-bar&#39;,
+
+		template: mw.template.compile( &#39;&lt;div class=&quot;value&quot;&gt;&lt;/div&gt;&#39;, &#39;hogan&#39; ),
+
+<span id='ProgressBar-method-setValue'>		/**
+</span>		 * Set the value of the progress bar in percentages
+		 * @method
+		 * @param {Number} value of the progress bar
+		 */
+		setValue: function ( value ) {
+			this.$( &#39;.value&#39; ).css( &#39;width&#39;, value * 100 + &#39;%&#39; );
+		}
+	} );
+
+	M.define( &#39;modules/uploads/ProgressBar&#39;, ProgressBar );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

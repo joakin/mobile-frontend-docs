@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var InfoboxEditorOverlay,
+		pageTitle = mw.config.get( &#39;wgTitle&#39; ),
+		icons = M.require( &#39;icons&#39; ),
+		LoadingOverlay = M.require( &#39;LoadingOverlay&#39; ),
+		WikiDataItemLookupInputWidget = M.require( &#39;modules/infobox/WikiDataItemLookupInputWidget&#39; ),
+		//WikiGrokApi = M.require( &#39;modules/wikigrok/WikiGrokApi&#39; ),
+		Overlay = M.require( &#39;Overlay&#39; );
+
+<span id='InfoboxEditorOverlay'>	/**
+</span>	 * A Wikidata generated infobox editor
+	 * @class InfoboxEditorOverlay
+	 * @extends Overlay
+	 */
+	InfoboxEditorOverlay = Overlay.extend( {
+<span id='InfoboxEditorOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.title Page title
+		 * @cfg {String} defaults.descriptionLabel WikiData description of the page
+		 */
+		defaults: {
+			title: pageTitle,
+			descriptionLabel: mw.msg( &#39;mobile-frontend-wikidata-editor-description-label&#39;, pageTitle )
+		},
+<span id='InfoboxEditorOverlay-property-events'>		/** @inheritdoc */
+</span>		events: {
+			&#39;click .submit&#39;: &#39;onSave&#39;
+		},
+<span id='InfoboxEditorOverlay-property-templatePartials'>		/**
+</span>		 * @inheritdoc
+		 */
+		templatePartials: {
+			spinner: icons.spinner,
+			saveMsg: mw.msg( &#39;mobile-frontend-editor-save&#39; ),
+			header: mw.template.get( &#39;mobile.infobox&#39;, &#39;EditorOverlayHeader.hogan&#39; ),
+			content: mw.template.get( &#39;mobile.infobox&#39;, &#39;EditorOverlayContent.hogan&#39; )
+		},
+<span id='InfoboxEditorOverlay-method-initialize'>		/**
+</span>		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			var self = this;
+			this.infobox = options.infobox;
+			Overlay.prototype.initialize.apply( this, arguments );
+			this.infobox.emit( &#39;load&#39; );
+			// make sure the infobox has fully intialized.
+			this.infobox.getDeferred().done( function () {
+				self.render( self.infobox.options );
+				self.$( &#39;.spinner&#39; ).remove();
+				self.$( &#39;.editor-interface&#39; ).removeClass( &#39;hidden&#39; );
+			} );
+		},
+<span id='InfoboxEditorOverlay-method-setupLookupInputWidgets'>		/**
+</span>		 * Enhances existing DOM elements in view with OOUI LookupInputWidgets
+		 */
+		setupLookupInputWidgets: function () {
+			var self = this;
+
+			this.$( &#39;.editable-field&#39; ).each( function () {
+				var widget, src,
+					$field = $( this ),
+					$answers = $( &#39;&lt;div class=&quot;answers&quot;&gt;&#39; ),
+					type = $field.parent().data( &#39;type&#39; ),
+					label = $field.data( &#39;label&#39; );
+
+				if ( type === &#39;wikibase-item&#39; ) {
+					widget = new WikiDataItemLookupInputWidget( {
+						value: label,
+						appendToAnswer: $answers.insertBefore( this ),
+						claimId: $field.parent().data( &#39;id&#39; ),
+						api: self.infobox.api
+					} );
+					$field.empty().append( widget.$element );
+				} else if ( type === &#39;commonsMedia&#39; ) {
+					src = $field.data( &#39;src&#39; );
+					if ( src ) {
+						$field.empty().append( $( &#39;&lt;img&gt;&#39; ).attr( &#39;src&#39;, src  ) );
+					}
+				} else {
+					$field.text( label );
+				}
+			} );
+		},
+<span id='InfoboxEditorOverlay-method-onSaveComplete'>		/**
+</span>		 * Event handler that runs whenever a save has been fully executed.
+		 */
+		onSaveComplete: function () {
+			// clear the existing hash for the refresh
+			window.location.hash = &#39;&#39;;
+			window.location.query = &#39;cachebust=&#39; + Math.random();
+			// Give time for wikidata to update...
+			window.setTimeout( function () {
+				window.location.reload();
+			}, 300 );
+		},
+<span id='InfoboxEditorOverlay-method-onSave'>		/**
+</span>		 * Event handler that runs when the user clicks save.
+		 */
+		onSave: function () {
+			var self = this,
+				$answers = this.$( &#39;.answers&#39; ).children(),
+				api = self.infobox.getApi(),
+				changesToStage = $answers.length,
+				queue = [],
+				loader = new LoadingOverlay(),
+				val = self.$( &#39;.description&#39; ).val();
+
+			loader.show();
+<span id='global-method-completeSaveEvent'>			/**
+</span>			 * Executes save commands sequentially to avoid edit conflicts due to
+			 * use of centralauth tokens
+			 * @ignore
+			 */
+			function completeSaveEvent() {
+				var args;
+				if ( queue.length === 0 ) {
+					self.onSaveComplete.apply( self );
+				} else {
+					args = queue.pop();
+					api.saveClaim.apply( api, args ).always( completeSaveEvent );
+				}
+			}
+			$( this ).prop( &#39;disabled&#39;, true );
+			$answers.each( function () {
+				var $answer = $( this );
+				queue.push( [ $answer.data( &#39;id&#39; ), $answer.data( &#39;value&#39; ) ] );
+			} );
+			if ( this.initialDescriptionValue !== val ) {
+				changesToStage += 1;
+				api.saveDescription( val ).always( completeSaveEvent );
+			} else {
+				completeSaveEvent();
+			}
+		},
+<span id='InfoboxEditorOverlay-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function () {
+			Overlay.prototype.postRender.apply( this, arguments );
+			this.initialDescriptionValue = $( &#39;.description&#39; ).val();
+			this.setupLookupInputWidgets();
+		}
+	} );
+
+	M.define( &#39;modules/wikigrok/InfoboxEditorOverlay&#39;, InfoboxEditorOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

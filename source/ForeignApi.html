@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var api = M.require( &#39;api&#39; ),
+		Api = api.Api,
+		ForeignApi;
+
+<span id='ForeignApi'>	/**
+</span>	 * Extends API for cross origin requests
+	 * @class ForeignApi
+	 * @extends Api
+	 */
+	ForeignApi = Api.extend( {
+<span id='ForeignApi-method-getCentralAuthToken'>		/**
+</span>		 * Get a central auth token from the current host for use on the foreign api.
+		 * @return {jQuery.Deferred}
+		 */
+		getCentralAuthToken: function () {
+			var data = {
+				action: &#39;centralauthtoken&#39;
+			};
+			// central auth token must be requested from the Api (not ForeignApi)
+			return api.get( data ).then( function ( resp ) {
+				if ( resp.error ) {
+					return false;
+				} else {
+					return resp.centralauthtoken.centralauthtoken;
+				}
+			} );
+		},
+<span id='ForeignApi-method-getToken'>		/**
+</span>		 * Get a token from a foreign API
+		 * @param {String} type of token you want to retrieve
+		 * @param {String} centralAuthToken to help get it
+		 * @return {jQuery.Deferred}
+		 */
+		getToken: function ( type, centralAuthToken ) {
+			var data = {
+				action: &#39;query&#39;,
+				meta: &#39;tokens&#39;,
+				origin: this.getOrigin(),
+				centralauthtoken: centralAuthToken,
+				type: type
+			};
+			return this.ajax( data ).then( function ( resp ) {
+				return resp.query.tokens[type + &#39;token&#39;];
+			} );
+		},
+<span id='ForeignApi-method-postWithToken'>		/**
+</span>		 * Post to API with support for central auth tokens
+		 * @param {String} tokenType Ignored. `&#39;csrf&#39;` is always used
+		 * @param {Object} data Data to be preprocessed and added to options
+		 * @param {Object} options Parameters passed to $.ajax()
+		 * @return {jQuery.Deferred}
+		 */
+		postWithToken: function ( tokenType, data, options ) {
+			var self = this,
+				d = $.Deferred();
+
+			options = options || {};
+			// first let&#39;s sort out the token
+			self.getCentralAuthToken().done( function ( centralAuthTokenOne ) {
+				self.getToken( tokenType, centralAuthTokenOne ).done( function ( token ) {
+					self.getCentralAuthToken().done( function ( centralAuthTokenTwo ) {
+						data.format = &#39;json&#39;;
+						data.centralauthtoken = centralAuthTokenTwo;
+						data.token = token;
+						data.origin = self.getOrigin();
+
+						options.xhrFields = {
+							withCredentials: true
+						};
+						// In case it is a file upload we need to append origin to query string.
+						options.url = self.apiUrl + &#39;?origin=&#39; + self.getOrigin();
+
+						Api.prototype.post.call( self, data, options ).done( function ( resp ) {
+							d.resolve( resp );
+						} ).fail( $.proxy( d, &#39;reject&#39; ) );
+					} ).fail( $.proxy( d, &#39;reject&#39; ) );
+				} ).fail( $.proxy( d, &#39;reject&#39; ) );
+			} ).fail( $.proxy( d, &#39;reject&#39; ) );
+			return d;
+		},
+<span id='ForeignApi-method-ajax'>		/** @inheritdoc */
+</span>		ajax: function ( data, options ) {
+			options = options || {};
+			if ( !options.url ) {
+				options.url = this.apiUrl;
+			}
+			// Tokens need to be requested without jsonp
+			if ( options.type !== &#39;POST&#39; &amp;&amp; data.action !== &#39;tokens&#39; &amp;&amp; data.meta !== &#39;tokens&#39; ) {
+				options.dataType = &#39;jsonp&#39;;
+			}
+			return Api.prototype.ajax.call( this, data, options );
+		},
+<span id='ForeignApi-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function () {
+			Api.prototype.initialize.apply( this, arguments );
+		}
+	} );
+
+	M.define( &#39;modules/ForeignApi&#39;, ForeignApi );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

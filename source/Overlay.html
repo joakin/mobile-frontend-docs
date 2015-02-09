@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*jshint unused:vars */
+( function ( M, $ ) {
+
+	var
+		View = M.require( &#39;View&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		icons = M.require( &#39;icons&#39; ),
+		browser = M.require( &#39;browser&#39; ),
+		$window = $( window ),
+		Overlay;
+
+<span id='Overlay'>	/**
+</span>	 * Mobile modal window
+	 * @class Overlay
+	 * @extends View
+	 * @uses Icon
+	 */
+	Overlay = View.extend( {
+<span id='Overlay-property-hasFixedHeader'>		/**
+</span>		 * Identify whether the element contains position fixed elements
+		 * @property {Boolean}
+		 */
+		hasFixedHeader: true,
+<span id='Overlay-property-fullScreen'>		/**
+</span>		 * Is overlay fullscreen
+		 * @property {Boolean}
+		 */
+		fullScreen: true,
+
+<span id='Overlay-property-appendTo'>		/**
+</span>		 * use &#39;#mw-mf-viewport&#39; rather than &#39;body&#39; - for some reasons this has
+		 * odd consequences on Opera Mobile (see bug 52361)
+		 * @property {String|jQuery.Object}
+		 */
+		appendTo: &#39;#mw-mf-viewport&#39;,
+
+<span id='Overlay-property-className'>		/**
+</span>		 * Default class name
+		 * @property {String}
+		 */
+		className: &#39;overlay&#39;,
+		templatePartials: {
+			header: mw.template.get( &#39;mobile.overlays&#39;, &#39;header.hogan&#39; )
+		},
+		template: mw.template.get( &#39;mobile.overlays&#39;, &#39;Overlay.hogan&#39; ),
+<span id='Overlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.saveMessage Caption for save button on edit form.
+		 * @cfg {String} defaults.cancelButton HTML of the cancel button.
+		 * @cfg {String} defaults.backButton HTML of the back button.
+		 * @cfg {String} defaults.headerButtonsListClassName A comma separated string of class
+		 * names of the wrapper of the header buttons.
+		 * @cfg {Boolean} defaults.fixedHeader Whether the header is fixed.
+		 * @cfg {String} defaults.spinner HTML of the spinner icon.
+		 */
+		defaults: {
+			saveMsg: mw.msg( &#39;mobile-frontend-editor-save&#39; ),
+			cancelButton: new Icon( {
+				tagName: &#39;button&#39;,
+				name: &#39;cancel&#39;,
+				additionalClassNames: &#39;cancel&#39;,
+				label: mw.msg( &#39;mobile-frontend-overlay-close&#39; )
+			} ).toHtmlString(),
+			backButton: new Icon( {
+				tagName: &#39;button&#39;,
+				name: &#39;back&#39;,
+				additionalClassNames: &#39;back&#39;,
+				label: mw.msg( &#39;mobile-frontend-overlay-close&#39; )
+			} ).toHtmlString(),
+			headerButtonsListClassName: &#39;&#39;,
+			fixedHeader: true,
+			spinner: icons.spinner().toHtmlString()
+		},
+<span id='Overlay-property-closeOnContentTap'>		/**
+</span>		 * Flag overlay to close on content tap
+		 * @property {Boolean}
+		 */
+		closeOnContentTap: false,
+
+<span id='Overlay-method-showSpinner'>		/**
+</span>		 * Shows the spinner right to the input field.
+		 * @method
+		 */
+		showSpinner: function () {
+			this.$spinner.removeClass( &#39;hidden&#39; );
+		},
+
+<span id='Overlay-method-clearSpinner'>		/**
+</span>		 * Hide the spinner near to the input field.
+		 * @method
+		 */
+		clearSpinner: function () {
+			this.$spinner.addClass( &#39;hidden&#39; );
+		},
+
+<span id='Overlay-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			this.isIos = browser.isIos();
+			this.isIos8 = browser.isIos( 8 );
+			View.prototype.initialize.apply( this, arguments );
+		},
+<span id='Overlay-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function ( options ) {
+			var
+				self = this,
+				$overlayContent = this.$overlayContent = this.$( &#39;.overlay-content&#39; ),
+				startY;
+
+			this.$spinner = this.$( &#39;.spinner&#39; );
+			if ( this.isIos ) {
+				this.$el.addClass( &#39;overlay-ios&#39; );
+			}
+			// Truncate any text inside in the overlay header.
+			this.$( &#39;.overlay-header h2 span&#39; ).addClass( &#39;truncated-text&#39; );
+			// FIXME: Remove .initial-header selector when bug 71203 resolved.
+			this.$( &#39;.cancel, .confirm, .initial-header .back&#39; ).on( &#39;click&#39;, function ( ev ) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				window.history.back();
+			} );
+			// stop clicks in the overlay from propagating to the page
+			// (prevents non-fullscreen overlays from being closed when they&#39;re tapped)
+			this.$el.on( &#39;click&#39;, function ( ev ) {
+				ev.stopPropagation();
+			} );
+
+			if ( this.isIos &amp;&amp; this.hasFixedHeader ) {
+				$overlayContent
+					.on( &#39;touchstart&#39;, function ( ev ) {
+						startY = ev.originalEvent.touches[0].pageY;
+					} )
+					.on( &#39;touchmove&#39;, function ( ev ) {
+						var
+							y = ev.originalEvent.touches[0].pageY,
+							contentLenght = $overlayContent.prop( &#39;scrollHeight&#39; ) - $overlayContent.outerHeight();
+
+						ev.stopPropagation();
+						// prevent scrolling and bouncing outside of .overlay-content
+						if (
+							( $overlayContent.scrollTop() === 0 &amp;&amp; startY &lt; y ) ||
+							( $overlayContent.scrollTop() === contentLenght &amp;&amp; startY &gt; y )
+						) {
+							ev.preventDefault();
+						}
+					} );
+
+				// wait for things to render before doing any calculations
+				setTimeout( function () {
+					self._fixIosHeader( &#39;textarea, input&#39; );
+				}, 0 );
+			}
+		},
+
+<span id='Overlay-method-show'>		/**
+</span>		 * Attach overlay to current view and show it.
+		 * @method
+		 */
+		show: function () {
+			var self = this;
+			this.$el.appendTo( this.appendTo );
+			this.scrollTop = $( document ).scrollTop();
+
+			if ( this.fullScreen ) {
+				$( &#39;html&#39; ).addClass( &#39;overlay-enabled&#39; );
+				// skip the URL bar if possible
+				window.scrollTo( 0, 1 );
+			}
+
+			if ( this.closeOnContentTap ) {
+				$( &#39;#mw-mf-page-center&#39; ).one( &#39;click&#39;, $.proxy( this, &#39;hide&#39; ) );
+			}
+
+			// prevent scrolling and bouncing outside of .overlay-content
+			if ( this.isIos &amp;&amp; this.hasFixedHeader ) {
+				$window
+					.on( &#39;touchmove.ios&#39;, function ( ev ) {
+						ev.preventDefault();
+					} )
+					.on( &#39;resize.ios&#39;, function () {
+						self._resizeContent( $window.height() );
+					} );
+			}
+
+			this.$el.addClass( &#39;visible&#39; );
+		},
+<span id='Overlay-method-hide'>		/**
+</span>		 * Detach the overlay from the current view
+		 * @method
+		 * @param {Boolean} [force] Whether the overlay should be closed regardless of
+		 * state (see PhotoUploadProgress)
+		 * @return {Boolean} Whether the overlay was successfully hidden or not
+		 */
+		hide: function ( force ) {
+			if ( this.fullScreen ) {
+				$( &#39;html&#39; ).removeClass( &#39;overlay-enabled&#39; );
+				// return to last known scroll position
+				window.scrollTo( document.body.scrollLeft, this.scrollTop );
+			}
+
+			this.$el.detach();
+
+			if ( this.isIos ) {
+				$window.off( &#39;.ios&#39; );
+			}
+
+<span id='Overlay-event-hide'>			/**
+</span>			 * @event hide
+			 * Fired when the overlay is closed.
+			 */
+			this.emit( &#39;hide&#39; );
+
+			return true;
+		},
+
+<span id='Overlay-method-_resizeContent'>		/**
+</span>		 * Fit the overlay content height to the window taking overlay header and footer heights
+		 * into consideration.
+		 * @method
+		 * @private
+		 * @param {Number} windowHeight The height of the window
+		 */
+		_resizeContent: function ( windowHeight ) {
+			this.$overlayContent.height(
+				windowHeight -
+				this.$( &#39;.overlay-header-container&#39; ).outerHeight() -
+				this.$( &#39;.overlay-footer-container&#39; ).outerHeight()
+			);
+		},
+
+<span id='Overlay-method-_fixIosHeader'>		/**
+</span>		 * Resize .overlay-content to occupy 100% of screen space when virtual
+		 * keyboard is shown/hidden on iOS.
+		 *
+		 * This function supplements the custom styles for Overlays on iOS.
+		 * On iOS we scroll the content inside of .overlay-content div instead
+		 * of scrolling the whole page to achieve a consistent sticky header
+		 * effect (position: fixed doesn&#39;t work on iOS when the virtual keyboard
+		 * is open).
+		 *
+		 * @method
+		 * @private
+		 * @param {String} el CSS selector for elements that may trigger virtual
+		 * keyboard (usually inputs, textareas, contenteditables).
+		 */
+		_fixIosHeader: function ( el ) {
+			var self = this;
+
+			if ( this.isIos ) {
+				this._resizeContent( $( window ).height() );
+				$( el )
+					.on( &#39;focus&#39;, function () {
+						setTimeout( function () {
+							var keyboardHeight = 0;
+
+							// detect virtual keyboard height
+							if ( !self.isIos8 ) {
+								// this method does not work in iOS 8.02
+								$window.scrollTop( 999 );
+								keyboardHeight = $window.scrollTop();
+								$window.scrollTop( 0 );
+							} // FIXME: implement a solution from https://devforums.apple.com/message/1050636#1050636
+
+							if ( $window.height() &gt; keyboardHeight ) {
+								self._resizeContent( $window.height() - keyboardHeight );
+							}
+						}, 0 );
+					} )
+					.on( &#39;blur&#39;, function () {
+						self._resizeContent( $window.height() );
+					} );
+			}
+		},
+
+<span id='Overlay-method-_showHidden'>		/**
+</span>		 * Show elements that are selected by the className.
+		 * Also hide .hideable elements
+		 * Can&#39;t use jQuery&#39;s hide() and show() because show() sets display: block.
+		 * And we want display: table for headers.
+		 * @method
+		 * @private
+		 * @param {String} className CSS selector to show
+		 */
+		_showHidden: function ( className ) {
+			this.$( &#39;.hideable&#39; ).addClass( &#39;hidden&#39; );
+			this.$( className ).removeClass( &#39;hidden&#39; );
+		}
+	} );
+
+	M.define( &#39;Overlay&#39;, Overlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var page = M.getCurrentPage(),
+		currentPageTitle =  page.title,
+		context = M.require( &#39;context&#39; ),
+		settings = M.require( &#39;settings&#39; ),
+		browser = M.require( &#39;browser&#39; ),
+		escapeHash = M.require( &#39;util&#39; ).escapeHash,
+		arrowUpOptions = {
+			name: &#39;arrow-up&#39;,
+			additionalClassNames: &#39;icon-15px indicator&#39;
+		},
+		arrowDownOptions = {
+			name: &#39;arrow-down&#39;,
+			additionalClassNames: &#39;icon-15px indicator&#39;
+		},
+		Icon = M.require( &#39;Icon&#39; );
+
+<span id='global-method-getExpandedSections'>	/**
+</span>	 * Using the settings module looks at what sections were previously expanded on
+	 * existing page.
+	 *
+	 * @method
+	 * @returns {Object} representing open sections
+	 * @ignore
+	 */
+	function getExpandedSections() {
+		var expandedSections = $.parseJSON(
+			settings.get( &#39;expandedSections&#39;, false ) || &#39;{}&#39;
+		);
+		expandedSections[currentPageTitle] = expandedSections[currentPageTitle] || {};
+		return expandedSections;
+	}
+
+<span id='global-method-saveExpandedSections'>	/**
+</span>	 * @ignore
+	 * @param {Object} expandedSections
+	 * Save expandedSections to localStorage
+	 */
+	function saveExpandedSections( expandedSections ) {
+		settings.save(
+			&#39;expandedSections&#39;, JSON.stringify( expandedSections ), false
+		);
+	}
+
+<span id='global-method-storeSectionToggleState'>	/**
+</span>	 * Given an expanded heading, store it to localStorage.
+	 * If the heading is collapsed, remove it from localStorage.
+	 *
+	 * @param {jQuery.Object} $heading - A heading belonging to a section
+	 * @ignore
+	 */
+	function storeSectionToggleState( $heading ) {
+		var headline = $heading.find( &#39;span&#39; ).attr( &#39;id&#39; ),
+			isSectionOpen = $heading.hasClass( &#39;open-block&#39; ),
+			expandedSections = getExpandedSections();
+
+		if ( headline ) {
+			if ( isSectionOpen ) {
+				expandedSections[currentPageTitle][headline] = ( new Date() ).getTime();
+			} else {
+				delete expandedSections[currentPageTitle][headline];
+			}
+
+			saveExpandedSections( expandedSections );
+		}
+	}
+
+<span id='global-method-expandStoredSections'>	/**
+</span>	 * Expand sections that were previously expanded before leaving this page.
+	 * @param {jQuery.Object} $container
+	 * @ignore
+	 */
+	function expandStoredSections( $container ) {
+		var $sectionHeading, $headline,
+			expandedSections = getExpandedSections(),
+			$headlines = $container.find( &#39;.section-heading span&#39; );
+
+		$headlines.each( function () {
+			$headline = $( this );
+			$sectionHeading = $headline.parents( &#39;.section-heading&#39; );
+			// toggle only if the section is not already expanded
+			if (
+				expandedSections[currentPageTitle][$headline.attr( &#39;id&#39; )] &amp;&amp;
+				!$sectionHeading.hasClass( &#39;open-block&#39; )
+			) {
+				toggle( $sectionHeading );
+			}
+		} );
+	}
+
+<span id='global-method-cleanObsoleteStoredSections'>	/**
+</span>	 * Clean obsolete (saved more than a day ago) expanded sections from
+	 * localStorage.
+	 * @ignore
+	 */
+	function cleanObsoleteStoredSections() {
+		var now = ( new Date() ).getTime(),
+			expandedSections = getExpandedSections(),
+			// the number of days between now and the time a setting was saved
+			daysDifference;
+		$.each( expandedSections, function ( page, sections ) {
+			// clean the setting if it is more than a day old
+			$.each( sections, function ( section, timestamp ) {
+				daysDifference = Math.floor( ( now - timestamp ) / 1000 / 60 / 60 / 24 );
+				if ( daysDifference &gt;= 1 ) {
+					delete expandedSections[page][section];
+				}
+			} );
+		} );
+		saveExpandedSections( expandedSections );
+	}
+
+<span id='global-method-toggle'>	/**
+</span>	 * Given a heading, toggle it and any of its children
+	 *
+	 * @param {jQuery.Object} $heading A heading belonging to a section
+	 * @ignore
+	 */
+	function toggle( $heading ) {
+		var isCollapsed = $heading.is( &#39;.open-block&#39; ),
+			options, indicator;
+
+		$heading.toggleClass( &#39;open-block&#39; );
+		$heading.data( &#39;indicator&#39; ).remove();
+
+		options = $heading.hasClass( &#39;open-block&#39; ) ? arrowUpOptions : arrowDownOptions;
+		indicator = new Icon( options ).prependTo( $heading );
+		$heading.data( &#39;indicator&#39;, indicator );
+
+		$heading.next()
+			.toggleClass( &#39;open-block&#39; )
+			.attr( {
+				&#39;aria-pressed&#39;: !isCollapsed,
+				&#39;aria-expanded&#39;: !isCollapsed
+			} );
+
+		if ( !browser.isWideScreen() ) {
+			storeSectionToggleState( $heading );
+		}
+	}
+
+<span id='global-method-enableKeyboardActions'>	/**
+</span>	 * Enables toggling via enter and space keys
+	 *
+	 * @ignore
+	 * @param {jQuery.Object} $heading
+	 */
+	function enableKeyboardActions( $heading ) {
+		$heading.on( &#39;keypress&#39;, function ( ev ) {
+			if ( ev.which === 13 || ev.which === 32 ) {
+				// Only handle keypresses on the &quot;Enter&quot; or &quot;Space&quot; keys
+				toggle( $( this ) );
+			}
+		} ).find( &#39;a&#39; ).on( &#39;keypress mouseup&#39;, function ( ev ) {
+			ev.stopPropagation();
+		} );
+	}
+
+<span id='global-method-reveal'>	/**
+</span>	 * Reveals an element and its parent section as identified by it&#39;s id
+	 *
+	 * @ignore
+	 * @param {String} selector A css selector that identifies a single element
+	 * @param {Object} $container jQuery element to search in
+	 */
+	function reveal( selector, $container ) {
+		var $target, $heading;
+
+		// jQuery will throw for hashes containing certain characters which can break toggling
+		try {
+			$target = $container.find( escapeHash( selector ) );
+			$heading = $target.parents( &#39;.collapsible-heading&#39; );
+			// The heading is not a section heading, check if in a content block!
+			if ( !$heading.length ) {
+				$heading = $target.parents( &#39;.collapsible-block&#39; ).prev( &#39;.collapsible-heading&#39; );
+			}
+			if ( $heading.length &amp;&amp; !$heading.hasClass( &#39;open-block&#39; ) ) {
+				toggle( $heading );
+			}
+			if ( $heading.length ) {
+				// scroll again after opening section (opening section makes the page longer)
+				window.scrollTo( 0, $target.offset().top );
+			}
+		} catch ( e ) {}
+	}
+
+<span id='global-method-enable'>	/**
+</span>	 * Enables section toggling in a given container when wgMFCollapseSectionsByDefault
+	 * is enabled.
+	 *
+	 * @method
+	 * @param {jQuery.object} $container to apply toggling to
+	 * @ignore
+	 */
+	function enable( $container ) {
+		var tagName, expandSections, indicator,
+			$firstHeading,
+			collapseSectionsByDefault = mw.config.get( &#39;wgMFCollapseSectionsByDefault&#39; );
+		$container = $container || $( &#39;#content&#39; );
+
+		$( &#39;html&#39; ).removeClass( &#39;stub&#39; );
+		$firstHeading = $container.find( &#39;h1,h2,h3,h4,h5,h6&#39; ).eq( 0 );
+		tagName = $firstHeading.prop( &#39;tagName&#39; ) || &#39;H1&#39;;
+
+		if ( collapseSectionsByDefault === undefined ) {
+			// Old default behavior if on cached output
+			collapseSectionsByDefault = true;
+		}
+		expandSections = !collapseSectionsByDefault ||
+			( context.isAlphaGroupMember() &amp;&amp; settings.get( &#39;expandSections&#39;, true ) === &#39;true&#39; );
+
+		$container.find( tagName ).each( function () {
+			var $heading = $( this ),
+				id = &#39;collapsible-block-&#39; + Math.random().toString();
+			// Be sure there is a div wrapping the section content.
+			// Otherwise, collapsible sections for this page is not enabled.
+			if ( $heading.next().is( &#39;div&#39; ) ) {
+				$heading
+					.addClass( &#39;collapsible-heading &#39; )
+					.attr( {
+						tabindex: 0,
+						&#39;aria-haspopup&#39;: &#39;true&#39;,
+						&#39;aria-controls&#39;: id
+					} )
+					.on( &#39;click&#39;, function ( ev ) {
+						// prevent taps/clicks on edit button after toggling (bug 56209)
+						ev.preventDefault();
+						toggle( $( this ) );
+					} );
+				indicator = new Icon( arrowDownOptions ).prependTo( $heading );
+				$heading.data( &#39;indicator&#39;, indicator );
+				$heading.next( &#39;div&#39; )
+					.addClass( &#39;collapsible-block&#39; )
+					.eq( 0 )
+					.attr( {
+						// We need to give each content block a unique id as that&#39;s
+						// the only way we can tell screen readers what element we&#39;re
+						// referring to (aria-controls)
+						id: id,
+						&#39;aria-pressed&#39;: &#39;false&#39;,
+						&#39;aria-expanded&#39;: &#39;false&#39;
+					} );
+
+				enableKeyboardActions( $heading );
+				if ( browser.isWideScreen() || expandSections ) {
+					// Expand sections by default on wide screen devices or if the expand sections setting is set (alpha only)
+					toggle( $heading );
+				}
+
+			}
+		} );
+
+<span id='global-method-checkHash'>		/**
+</span>		 * Checks the existing hash and toggles open any section that contains the fragment.
+		 *
+		 * @method
+		 * @ignore
+		 */
+		function checkHash() {
+			var hash = window.location.hash;
+			if ( hash.indexOf( &#39;#&#39; ) === 0 ) {
+				reveal( hash, $container );
+			}
+		}
+
+<span id='global-method-checkInternalRedirectAndHash'>		/**
+</span>		 * Checks the value of wgInternalRedirectTargetUrl and reveals the collapsed
+		 * section that contains it if present
+		 *
+		 * @method
+		 * @ignore
+		 */
+		function checkInternalRedirectAndHash() {
+			var internalRedirect = mw.config.get( &#39;wgInternalRedirectTargetUrl&#39; ),
+				internalRedirectHash = internalRedirect ? internalRedirect.split( &#39;#&#39; )[1] : false;
+
+			if ( internalRedirectHash ) {
+				window.location.hash = internalRedirectHash;
+				reveal( internalRedirectHash, $container );
+			}
+		}
+
+		checkInternalRedirectAndHash();
+		checkHash();
+		$( &#39;#content_wrapper a&#39; ).on( &#39;click&#39;, function () {
+			// the link might be an internal link with a hash.
+			// if it is check if we need to reveal any sections.
+			if ( $( this ).attr( &#39;href&#39; ) !== undefined &amp;&amp;
+				$( this ).attr( &#39;href&#39; ).indexOf( &#39;#&#39; ) &gt; -1
+			) {
+				checkHash();
+			}
+		} );
+
+		if ( !browser.isWideScreen() ) {
+			expandStoredSections( $container );
+			cleanObsoleteStoredSections();
+		}
+	}
+
+<span id='global-method-init'>	/**
+</span>	 * Initialises toggling code.
+	 *
+	 * @method
+	 * @param {jQuery.Object} $container to enable toggling on
+	 * @ignore
+	 */
+	function init( $container ) {
+		// distinguish headings in content from other headings
+		$( &#39;#content&#39; ).find( &#39;&gt; h1,&gt; h2,&gt; h3,&gt; h4,&gt; h5,&gt; h6&#39; ).addClass( &#39;section-heading&#39; );
+		enable( $container );
+	}
+
+	// avoid this running on Watchlist
+	if (
+		!page.inNamespace( &#39;special&#39; ) &amp;&amp;
+		!mw.config.get( &#39;wgIsMainPage&#39; ) &amp;&amp;
+		mw.config.get( &#39;wgAction&#39; ) === &#39;view&#39;
+	) {
+		if ( mw.config.get( &#39;wgMFPageSections&#39; ) ) {
+			init();
+		}
+	}
+
+	M.define( &#39;toggle&#39;, {
+		reveal: reveal,
+		toggle: toggle,
+		enable: init,
+		// for tests
+		_currentPageTitle: currentPageTitle,
+		_getExpandedSections: getExpandedSections,
+		_expandStoredSections: expandStoredSections,
+		_cleanObsoleteStoredSections: cleanObsoleteStoredSections
+	} );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

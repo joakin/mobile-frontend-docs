@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var loader = M.require( &#39;loader&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		MobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		uiSchema = new MobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; ),
+		user = M.require( &#39;user&#39; );
+
+	// categories overlay
+	overlayManager.add( /^\/categories$/, function () {
+		var result = $.Deferred();
+
+		loader.loadModule( &#39;mobile.categories&#39;, true ).done( function ( loadingOverlay ) {
+			var CategoryOverlay = M.require( &#39;categories/CategoryOverlay&#39; );
+
+			loadingOverlay.hide();
+			result.resolve( new CategoryOverlay( {
+				isAnon: user.isAnon(),
+				title: M.getCurrentPage().title
+			} ) );
+		} );
+		return result;
+	} );
+
+	// add categories overlay
+	overlayManager.add( /^\/categories\/add$/, function () {
+		var result = $.Deferred();
+
+		loader.loadModule( &#39;mobile.categories&#39;, true ).done( function ( loadingOverlay ) {
+			var CategoryAddOverlay = M.require( &#39;categories/CategoryAddOverlay&#39; );
+
+			loadingOverlay.hide();
+			result.resolve( new CategoryAddOverlay( {
+				categories: mw.config.get( &#39;wgCategories&#39; ),
+				isAnon: user.isAnon(),
+				title: M.getCurrentPage().title
+			} ) );
+		} );
+		return result;
+	} );
+
+<span id='global-method-initButton'>	/**
+</span>	 * Enable the categories button
+	 * @ignore
+	 */
+	function initButton() {
+		$( &#39;.category-button&#39; )
+			.removeClass( &#39;hidden&#39; )
+			.on( &#39;click&#39;, function () {
+				uiSchema.log( {
+					name: &#39;category-button&#39;
+				} );
+			} );
+	}
+
+	$( initButton );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

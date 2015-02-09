@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// FIXME: Merge this code with OverlayManager
+( function ( M, $ ) {
+
+	var key, router,
+		EventEmitter = M.require( &#39;eventemitter&#39; );
+
+<span id='global-method-matchRoute'>	/**
+</span>	 * Does hash match entry.path?
+	 * @method
+	 * @private
+	 * @ignore
+	 * @param {String} hash String to match
+	 * @param {Object} entry Entry object
+	 * @returns {Boolean} Whether hash matches entry.path
+	 */
+	function matchRoute( hash, entry ) {
+		var match = hash.match( entry.path );
+		if ( match ) {
+			entry.callback.apply( this, match.slice( 1 ) );
+			return true;
+		}
+		return false;
+	}
+
+<span id='Router'>	/**
+</span>	 * Provides navigation routing and location information
+	 * @class Router
+	 * @uses EventEmitter
+	 */
+	function Router() {
+		EventEmitter.prototype.initialize.apply( this, arguments );
+		var self = this;
+		// use an object instead of an array for routes so that we don&#39;t
+		// duplicate entries that already exist
+		this.routes = {};
+		this._enabled = true;
+		this._oldHash = this.getPath();
+
+		$( window ).on( &#39;popstate&#39;, function () {
+			self.emit( &#39;popstate&#39; );
+		} );
+
+		$( window ).on( &#39;hashchange&#39;, function () {
+			// ev.originalEvent.newURL is undefined on Android 2.x
+			var routeEv;
+
+			if ( self._enabled ) {
+				routeEv = $.Event( &#39;route&#39;, {
+					path: self.getPath()
+				} );
+				self.emit( &#39;route&#39;, routeEv );
+
+				if ( !routeEv.isDefaultPrevented() ) {
+					self.checkRoute();
+				} else {
+					// if route was prevented, ignore the next hash change and revert the
+					// hash to its old value
+					self._enabled = false;
+					window.location.hash = self._oldHash;
+				}
+			} else {
+				self._enabled = true;
+			}
+
+			self._oldHash = self.getPath();
+		} );
+	}
+
+	for ( key in EventEmitter.prototype ) {
+		if ( EventEmitter.prototype.hasOwnProperty( key ) ) {
+			Router.prototype[ key ] = EventEmitter.prototype[ key ];
+		}
+	}
+
+<span id='Router-method-checkRoute'>	/**
+</span>	 * Check the current route and run appropriate callback if it matches.
+	 * @method
+	 */
+	Router.prototype.checkRoute = function () {
+		var hash = this.getPath();
+
+		$.each( this.routes, function ( id, entry ) {
+			return !matchRoute( hash, entry );
+		} );
+	};
+
+<span id='Router-method-route'>	/**
+</span>	 * Bind a specific callback to a hash-based route, e.g.
+	 *
+	 *     @example
+	 *     route( &#39;alert&#39;, function () { alert( &#39;something&#39; ); } );
+	 *     route( /hi-(.*)/, function ( name ) { alert( &#39;Hi &#39; + name ) } );
+	 *
+	 * @method
+	 * @param {Object} path String or RegExp to match.
+	 * @param {Function} callback Callback to be run when hash changes to one
+	 * that matches.
+	 */
+	Router.prototype.route = function ( path, callback ) {
+		var entry = {
+			path: typeof path === &#39;string&#39; ? new RegExp( &#39;^&#39; + path + &#39;$&#39; ) : path,
+			callback: callback
+		};
+		this.routes[entry.path] = entry;
+		matchRoute( this.getPath(), entry );
+	};
+
+<span id='Router-method-navigate'>	/**
+</span>	 * Navigate to a specific route. This is only a wrapper for changing the
+	 * hash now.
+	 *
+	 * @method
+	 * @param {String} path String with a route (hash without #).
+	 */
+	Router.prototype.navigate = function ( path ) {
+		window.location.hash = path;
+	};
+
+<span id='Router-method-back'>	/**
+</span>	 * Navigate to the previous route. This is a wrapper for window.history.back
+	 * @method
+	 * @return {jQuery.Deferred}
+	 */
+	Router.prototype.back = function () {
+		var deferredRequest = $.Deferred();
+		this.once( &#39;popstate&#39;, function () {
+			deferredRequest.resolve();
+		} );
+
+		// Check for onpopstate for older browser compatibility (ie8/9)
+		// Otherwise, deferred request is resolved in onpopstate
+		if ( !( &#39;onpopstate&#39; in window ) ) {
+			// give browser a few ms to update its history
+			setTimeout( function () {
+				deferredRequest.resolve();
+			}, 50 );
+		}
+		window.history.back();
+		return deferredRequest;
+	};
+
+<span id='Router-method-getPath'>	/**
+</span>	 * Get current path (hash).
+	 *
+	 * @method
+	 * @return {String} Current path.
+	 */
+	Router.prototype.getPath = function () {
+		return window.location.hash.slice( 1 );
+	};
+
+<span id='Router-method-isSupported'>	/**
+</span>	 * Determine if current browser supports onhashchange event
+	 * @method
+	 * @return {Boolean}
+	 */
+	Router.prototype.isSupported = function () {
+		return &#39;onhashchange&#39; in window;
+	};
+
+	router = new Router();
+
+	M.define( &#39;router&#39;, router );
+	M.define( &#39;Router&#39;, Router );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

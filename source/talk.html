@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var loader = M.require( &#39;loader&#39; ),
+		LoadingOverlay = M.require( &#39;LoadingOverlay&#39; ),
+		user = M.require( &#39;user&#39; ),
+		licenseLink = mw.config.get( &#39;wgMFLicenseLink&#39; ),
+		$talk = $( &#39;.talk&#39; ),
+		page = M.getCurrentPage(),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		context = M.require( &#39;context&#39; );
+
+	context.assertMode( [ &#39;beta&#39;, &#39;alpha&#39;, &#39;app&#39; ] );
+
+	overlayManager.add( /^\/talk\/?(.*)$/, function ( id ) {
+		var result = $.Deferred(),
+			talkOptions = {
+				title: $talk.data( &#39;title&#39; ) || mw.config.get( &#39;wgPageName&#39; )
+			};
+
+		// FIXME: cache this selector, it&#39;s used more than once
+		if ( $( &#39;#footer-places-terms-use&#39; ).length &gt; 0 ) {
+			talkOptions.licenseMsg = mw.msg( &#39;mobile-frontend-editor-licensing-with-terms&#39;,
+				$( &#39;#footer-places-terms-use&#39; ).html(), licenseLink );
+		} else {
+			talkOptions.licenseMsg = mw.msg( &#39;mobile-frontend-editor-licensing&#39;, licenseLink );
+		}
+
+		loader.loadModule( &#39;mobile.talk.overlays&#39; ).done( function () {
+			var Overlay;
+			if (  id === &#39;new&#39; ) {
+				Overlay = M.require( &#39;modules/talk/TalkSectionAddOverlay&#39; );
+			} else if ( id ) {
+				talkOptions.id = id;
+				Overlay = M.require( &#39;modules/talk/TalkSectionOverlay&#39; );
+			} else {
+				Overlay = M.require( &#39;modules/talk/TalkOverlay&#39; );
+			}
+			result.resolve( new Overlay( talkOptions ) );
+		} );
+		return result;
+	} );
+
+<span id='global-method-init'>	/**
+</span>	 * Create route &#39;#/talk&#39;
+	 * @ignore
+	 */
+	function init() {
+		$talk.attr( &#39;href&#39;, &#39;#/talk&#39; );
+	}
+
+	init();
+
+	// add an &quot;add discussion&quot; button to talk pages (only for beta and logged in users)
+	if (
+		context.isBetaGroupMember() &amp;&amp;
+		!user.isAnon() &amp;&amp;
+		( page.inNamespace( &#39;talk&#39; ) || page.inNamespace( &#39;user_talk&#39; ) )
+	) {
+		// FIXME: Like icons.js, it should be possible to easily create a button, instead of this
+		$( &#39;&lt;a class=&quot;mw-ui-button mw-ui-progressive&quot;&gt;&#39; )
+			.text( mw.msg( &#39;mobile-frontend-talk-add-overlay-submit&#39; ) )
+			.attr( &#39;href&#39;, &#39;#/talk/new&#39; )
+			.prependTo( &#39;#content&#39; );
+
+		// reload the page after the new discussion was added
+		M.on( &#39;talk-added-wo-overlay&#39;, function () {
+			var loadingOverlay = new LoadingOverlay();
+
+			window.location.hash = &#39;&#39;;
+			// setTimeout to make sure, that loadingOverlay&#39;s overlayenabled class on html doesnt get removed by
+			// OverlayManager (who closes TalkSectionAddOverlay
+			window.setTimeout( function () {
+				loadingOverlay.show();
+				window.location.reload();
+			}, 10 );
+		} );
+	}
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

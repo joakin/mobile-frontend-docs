@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var sizeBuckets = [ 320, 640, 800, 1024, 1280, 1920, 2560, 2880 ],
+		ImageApi,
+		Api = M.require( &#39;api&#39; ).Api;
+
+<span id='global-method-findSizeBucket'>	/**
+</span>	 * Gets the first size larger than or equal to the provided size
+	 * @param {Number} size
+	 * @ignore.
+	 */
+	function findSizeBucket( size ) {
+		var i = 0;
+		while ( size &gt; sizeBuckets[i] &amp;&amp; i &lt; sizeBuckets.length - 1 ) {
+			++i;
+		}
+		return sizeBuckets[i];
+	}
+
+<span id='ImageApi'>	/**
+</span>	 * API for retrieving image thumbnails for a given page
+	 * @class ImageApi
+	 * @extends Api
+	 */
+	ImageApi = Api.extend( {
+<span id='ImageApi-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function () {
+			Api.prototype.initialize.apply( this, arguments );
+			this._cache = {};
+		},
+
+<span id='ImageApi-method-getThumb'>		/**
+</span>		 * Get thumbnail via the API and cache it. Return the result from the cache if exists.
+		 * @param {String} title Url of image
+		 * @returns {jQuery.Deferred} with the image info
+		 */
+		getThumb: function ( title ) {
+			var result = this._cache[title],
+				imageSizeMultiplier = ( window.devicePixelRatio &amp;&amp; window.devicePixelRatio &gt; 1 ) ? window.devicePixelRatio : 1;
+
+			if ( !result ) {
+				this._cache[title] = result = $.Deferred();
+
+				this.get( {
+					action: &#39;query&#39;,
+					prop: &#39;imageinfo&#39;,
+					titles: title,
+					iiprop: [ &#39;url&#39;, &#39;extmetadata&#39; ],
+					// request an image devicePixelRatio times bigger than the reported screen size
+					// for retina displays and zooming
+					iiurlwidth: findSizeBucket( $( window ).width() * imageSizeMultiplier ),
+					iiurlheight: findSizeBucket( $( window ).height() * imageSizeMultiplier )
+				} ).done( function ( resp ) {
+					if ( resp.query &amp;&amp; resp.query.pages ) {
+						// FIXME: API
+						var data = $.map( resp.query.pages, function ( v ) {
+							return v;
+						} )[0].imageinfo[0];
+						result.resolve( data );
+					}
+				} );
+			}
+
+			return result;
+		}
+	} );
+
+	M.define( &#39;modules/mediaViewer&#39;, {
+		_findSizeBucket: findSizeBucket
+	} );
+	M.define( &#39;modules/mediaViewer/ImageApi&#39;, ImageApi );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

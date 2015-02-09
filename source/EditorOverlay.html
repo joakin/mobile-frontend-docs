@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var EditorOverlayBase = M.require( &#39;modules/editor/EditorOverlayBase&#39; ),
+		Section = M.require( &#39;Section&#39; ),
+		EditorApi = M.require( &#39;modules/editor/EditorApi&#39; ),
+		AbuseFilterPanel = M.require( &#39;modules/editor/AbuseFilterPanel&#39; ),
+		settings = M.require( &#39;settings&#39; ),
+		browser = M.require( &#39;browser&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		EditorOverlay;
+
+<span id='EditorOverlay'>	/**
+</span>	 * Overlay that shows an editor
+	 * @class EditorOverlay
+	 * @uses Section
+	 * @uses AbuseFilterPanel
+	 * @uses EditorApi
+	 * @uses VisualEditorOverlay
+	 * @extends EditorOverlayBase
+	 */
+	EditorOverlay = EditorOverlayBase.extend( {
+		templatePartials: $.extend( {}, EditorOverlayBase.prototype.templatePartials, {
+			content: mw.template.get( &#39;mobile.editor.overlay&#39;, &#39;content.hogan&#39; ),
+			anonWarning: mw.template.get( &#39;mobile.editor.common&#39;, &#39;EditorOverlayAnonWarning.hogan&#39; )
+		} ),
+<span id='EditorOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.loginCaption A link with label to login page.
+		 * @cfg {String} defaults.signupCaption A link with label to sign up page.
+		 * @cfg {String} defaults.anonLabel Title for link to edit a page without logging in.
+		 * @cfg {String} defaults.anonSelector CSS class name of the defaults.anonLabel wrapper.
+		 * @cfg {String} defaults.anonMsg Warning message, when user want to edit without
+		 * logging in.
+		 */
+		defaults: $.extend( {}, EditorOverlayBase.prototype.defaults, {
+			loginCaption: mw.msg( &#39;mobile-frontend-watchlist-cta-button-login&#39; ),
+			signupCaption: mw.msg( &#39;mobile-frontend-watchlist-cta-button-signup&#39; ),
+			anonLabel: mw.msg( &#39;mobile-frontend-editor-anon&#39; ),
+			anonSelector: &#39;continue&#39;,
+			anonMsg: mw.msg( &#39;mobile-frontend-editor-anonwarning&#39; )
+		} ),
+		editor: &#39;SourceEditor&#39;,
+		sectionLine: &#39;&#39;,
+
+<span id='EditorOverlay-method-isVisualEditorEnabled'>		/**
+</span>		 * Check whether VisualEditor is enabled or not.
+		 * @method
+		 * @return {Boolean}
+		 */
+		isVisualEditorEnabled: function () {
+			return browser.isWideScreen() &amp;&amp;
+				mw.config.get( &#39;wgVisualEditorConfig&#39; ) &amp;&amp;
+				$.inArray( mw.config.get( &#39;wgNamespaceNumber&#39; ), mw.config.get( &#39;wgVisualEditorConfig&#39; ).namespaces ) &gt; -1 &amp;&amp;
+				mw.config.get( &#39;wgTranslatePageTranslation&#39; ) !== &#39;translation&#39; &amp;&amp;
+				mw.config.get( &#39;wgPageContentModel&#39; ) === &#39;wikitext&#39;;
+		},
+
+<span id='EditorOverlay-method-initialize'>		/** @inheritdoc **/
+</span>		initialize: function ( options ) {
+			this.api = new EditorApi( {
+				title: options.title,
+				sectionId: options.sectionId,
+				oldId: options.oldId,
+				isNewPage: options.isNewPage
+			} );
+			this.readOnly = options.oldId ? true : false; // If old revision, readOnly mode
+			if ( this.isVisualEditorEnabled() ) {
+				options.editSwitcher = true;
+			}
+			if ( this.readOnly ) {
+				options.readOnly = true;
+				options.editingMsg = mw.msg( &#39;mobile-frontend-editor-viewing-source-page&#39;, options.title );
+			} else {
+				options.editingMsg = mw.msg( &#39;mobile-frontend-editor-editing-page&#39;, options.title );
+			}
+			if ( options.isAnon ) {
+				// add required data for anonymous editing warning
+				options = this._prepareAnonWarning( options );
+			}
+			// be explicit here. This may have been initialized from VE.
+			options.isVisualEditor = false;
+			options.previewingMsg = mw.msg( &#39;mobile-frontend-editor-previewing-page&#39;, options.title );
+			EditorOverlayBase.prototype.initialize.apply( this, arguments );
+			if ( this.isVisualEditorEnabled() ) {
+				this.initializeSwitcher();
+			}
+		},
+		events: $.extend( {}, EditorOverlayBase.prototype.events, {
+			&#39;click .visual-editor&#39;: &#39;onClickVisualEditor&#39;,
+			&#39;input .wikitext-editor&#39;: &#39;onInputWikitextEditor&#39;
+		} ),
+<span id='EditorOverlay-method-onInputWikitextEditor'>		/**
+</span>		 * Wikitext Editor input handler
+		 */
+		onInputWikitextEditor: function () {
+			this.api.setContent( this.$( &#39;.wikitext-editor&#39; ).val() );
+			this.$( &#39;.continue, .submit&#39; ).prop( &#39;disabled&#39;, false );
+		},
+<span id='EditorOverlay-method-onClickContinue'>		/**
+</span>		 * @inheritdoc
+		 */
+		onClickContinue: function () {
+			// handle the click on &quot;Edit without logging in&quot;
+			if ( this.options.isAnon ) {
+				this._showEditorAfterWarning();
+				return false;
+			}
+			EditorOverlayBase.prototype.onClickContinue.apply( this, arguments );
+		},
+<span id='EditorOverlay-method-onClickBack'>		/**
+</span>		 * @inheritdoc
+		 */
+		onClickBack: function () {
+			EditorOverlayBase.prototype.onClickBack.apply( this, arguments );
+			this._hidePreview();
+		},
+<span id='EditorOverlay-method-onClickVisualEditor'>		/**
+</span>		 * Visual editor click handler
+		 */
+		onClickVisualEditor: function () {
+			// If the user tries to switch to the VisualEditor, check if any changes have
+			// been made, and if so, tell the user they have to save first.
+			if ( this.isVisualEditorEnabled() ) {
+				if ( !this.api.hasChanged ) {
+					this._switchToVisualEditor( this.options );
+				} else {
+					if ( window.confirm( mw.msg( &#39;mobile-frontend-editor-switch-confirm&#39; ) ) ) {
+						this.onStageChanges();
+					}
+				}
+			}
+		},
+<span id='EditorOverlay-method-postRender'>		/** @inheritdoc **/
+</span>		postRender: function ( options ) {
+			EditorOverlayBase.prototype.postRender.apply( this, arguments );
+
+			this.$preview = this.$( &#39;.preview&#39; );
+			this.$content = this.$( &#39;.wikitext-editor&#39; );
+			if ( options.isAnon ) {
+				this.$anonWarning = this.$( &#39;.anonwarning&#39; );
+				this.$content.hide();
+				// the user has to click login, signup or edit without login, disable &quot;Next&quot; button on top right
+				this.$anonHiddenButtons = this.$( &#39;.overlay-header .continue, .editor-switcher&#39; ).hide();
+				this.clearSpinner();
+			}
+			// make license links open in separate tabs
+			this.$( &#39;.license a&#39; ).attr( &#39;target&#39;, &#39;_blank&#39; );
+
+			this.abuseFilterPanel = new AbuseFilterPanel().appendTo( this.$( &#39;.panels&#39; ) );
+
+			// If in readOnly mode, make textarea readonly
+			if ( this.readOnly ) {
+				this.$content.prop( &#39;readonly&#39;, true );
+			}
+
+			if ( !options.isAnon ) {
+				this._loadContent();
+			}
+		},
+
+<span id='EditorOverlay-method-_prepareAnonWarning'>		/**
+</span>		 * Sets additional values used for anonymous editing warning.
+		 * @method
+		 * @private
+		 * @param {Object} options object
+		 * @return {Object} Object with all options
+		 */
+		_prepareAnonWarning: function ( options ) {
+			var params = $.extend( {
+				// use wgPageName as this includes the namespace if outside Main
+				returnto: options.returnTo || mw.config.get( &#39;wgPageName&#39; ),
+				returntoquery: &#39;action=edit&amp;section=&#39; + options.sectionId
+			}, options.queryParams ),
+			signupParams = $.extend( {
+				type: &#39;signup&#39;
+			}, options.signupQueryParams );
+
+			options.loginUrl = mw.util.getUrl( &#39;Special:UserLogin&#39;, params );
+			options.signupUrl = mw.util.getUrl( &#39;Special:UserLogin&#39;, $.extend( params, signupParams ) );
+
+			return options;
+		},
+
+<span id='EditorOverlay-method-_showEditorAfterWarning'>		/**
+</span>		 * Handles click on &quot;Edit without login&quot; in anonymous editing warning.
+		 * @method
+		 * @private
+		 */
+		_showEditorAfterWarning: function () {
+			this.showSpinner();
+			this.$anonWarning.hide();
+			// reenable &quot;Next&quot; button
+			this.$anonHiddenButtons.show();
+			this._loadContent();
+		},
+
+<span id='EditorOverlay-method-onStageChanges'>		/**
+</span>		 * Prepares the preview interface and reveals the save screen of the overlay
+		 * @method
+		 * @inheritdoc
+		 */
+		onStageChanges: function () {
+			var self = this,
+				params = {
+					text: this.$content.val()
+				};
+
+			this.scrollTop = $( &#39;body&#39; ).scrollTop();
+			this.$content.hide();
+			this.showSpinner();
+
+			if ( mw.config.get( &#39;wgIsMainPage&#39; ) ) {
+				params.mainpage = 1; // Setting it to 0 will have the same effect
+			}
+			this.api.getPreview( params ).done( function ( parsedText, parsedSectionLine ) {
+				// On desktop edit summaries strip tags. Mimic this behavior on mobile devices
+				self.sectionLine = $( &#39;&lt;div/&gt;&#39; ).html( parsedSectionLine ).text();
+				new Section( {
+					el: self.$preview,
+					text: parsedText
+				// bug 49218: stop links from being clickable (note user can still hold down to navigate to them)
+				} ).$( &#39;a&#39; ).on( &#39;click&#39;, false );
+				// Emit event so we can perform enhancements to page
+				M.emit( &#39;edit-preview&#39;, self );
+			} ).fail( function () {
+				self.$preview.addClass( &#39;error&#39; ).text( mw.msg( &#39;mobile-frontend-editor-error-preview&#39; ) );
+			} ).always( function () {
+				self.clearSpinner();
+				self.$preview.show();
+			} );
+
+			EditorOverlayBase.prototype.onStageChanges.apply( this, arguments );
+		},
+
+<span id='EditorOverlay-method-_hidePreview'>		/**
+</span>		 * Hides the preview and reverts back to initial screen.
+		 * @method
+		 * @private
+		 */
+		_hidePreview: function () {
+			this.api.abort();
+			this.clearSpinner();
+			this.$preview.removeClass( &#39;error&#39; ).hide();
+			this.$content.show();
+			window.scrollTo( 0, this.scrollTop );
+			// FIXME: Don&#39;t call a private method that is outside the class.
+			this._showHidden( &#39;.initial-header&#39; );
+			this.abuseFilterPanel.hide();
+		},
+
+<span id='EditorOverlay-method-_loadContent'>		/**
+</span>		 * Requests content from the API and reveals it in UI.
+		 * @method
+		 * @private
+		 */
+		_loadContent: function () {
+			var self = this;
+
+			this.$content.hide();
+			this.showSpinner();
+
+			this.api.getContent()
+				.done( function ( content ) {
+					self.$content
+						.show()
+						.val( content )
+						.microAutosize();
+					self.clearSpinner();
+				} )
+				.fail( function ( error ) {
+					self.reportError( mw.msg( &#39;mobile-frontend-editor-error-loading&#39; ), error );
+				} );
+		},
+
+<span id='EditorOverlay-method-_switchToVisualEditor'>		/**
+</span>		 * Loads a {VisualEditorOverlay} and replaces the existing EditorOverlay with it
+		 * based on the current option values.
+		 * @method
+		 * @private
+		 * @param {Object} options Object passed to the constructor
+		 */
+		_switchToVisualEditor: function ( options ) {
+			var self = this;
+			this.log( &#39;switch&#39; );
+			// Save a user setting indicating that this user prefers using the VisualEditor
+			settings.save( &#39;preferredEditor&#39;, &#39;VisualEditor&#39;, true );
+			// Load the VisualEditor and replace the SourceEditor overlay with it
+			this.showSpinner();
+			this.$content.hide();
+			mw.loader.using(
+				&#39;mobile.editor.ve&#39;,
+				function () {
+					var VisualEditorOverlay = M.require( &#39;modules/editor/VisualEditorOverlay&#39; );
+
+					self.clearSpinner();
+					overlayManager.replaceCurrent( new VisualEditorOverlay( options ) );
+				},
+				function () {
+					self.clearSpinner();
+					self.$content.show();
+					// FIXME: We should show an error notification, but right now toast
+					// notifications are not dismissible when shown within the editor.
+				}
+			);
+		},
+
+<span id='EditorOverlay-method-_showAbuseFilter'>		/**
+</span>		 * Reveals an abuse filter panel inside the view.
+		 * @method
+		 * @private
+		 * @param {String} type The type of alert, e.g. &#39;warning&#39; or &#39;disallow&#39;
+		 * @param {String} message Message to show in the AbuseFilter overlay
+		 */
+		_showAbuseFilter: function ( type, message ) {
+			this.abuseFilterPanel.show( type, message );
+			this._showHidden( &#39;.save-header&#39; );
+			// disable continue and save buttons, reenabled when user changes content
+			this.$( &#39;.continue, .submit&#39; ).prop( &#39;disabled&#39;, this.abuseFilterPanel.isDisallowed );
+		},
+
+<span id='EditorOverlay-method-onSaveBegin'>		/**
+</span>		 * Executed when the editor clicks the save button. Handles logging and submitting
+		 * the save action to the editor API.
+		 * @inheritdoc
+		 */
+		onSaveBegin: function () {
+			var self = this,
+				options = {
+					summary: this.$( &#39;.summary&#39; ).val()
+				};
+
+			if ( self.sectionLine !== &#39;&#39; ) {
+				options.summary = &#39;/* &#39; + self.sectionLine + &#39; */&#39; + options.summary;
+			}
+			EditorOverlayBase.prototype.onSaveBegin.apply( this, arguments );
+			if ( this.confirmAborted ) {
+				return;
+			}
+			if ( this.captchaId ) {
+				options.captchaId = this.captchaId;
+				options.captchaWord = this.$( &#39;.captcha-word&#39; ).val();
+			}
+
+			// FIXME: Don&#39;t call a private method that is outside the class.
+			this._showHidden( &#39;.saving-header&#39; );
+
+			this.api.save( options )
+				.done( function () {
+					var title = self.options.title;
+					// Special case behaviour of main page
+					if ( mw.config.get( &#39;wgIsMainPage&#39; ) ) {
+						window.location = mw.util.getUrl( title );
+						return;
+					}
+
+					self.onSaveComplete();
+				} )
+				.fail( function ( data, code, response ) {
+					var msg,
+						// When save failed with one of these error codes, the returned
+						// message in response.error.info will be forwarded to the user.
+						// FIXME: This shouldn&#39;t be needed when info texts are all localized.
+						whitelistedErrorInfo = [
+							&#39;readonly&#39;,
+							&#39;blocked&#39;,
+							&#39;autoblocked&#39;
+						];
+
+					if ( data.type === &#39;captcha&#39; ) {
+						self.captchaId = data.details.id;
+						// FIXME: Don&#39;t call a private method that is outside the class.
+						self._showCaptcha( data.details.url );
+					} else if ( data.type === &#39;abusefilter&#39; ) {
+						self._showAbuseFilter( data.details.type, data.details.message );
+					} else {
+						if ( data.details === &#39;editconflict&#39; ) {
+							msg = mw.msg( &#39;mobile-frontend-editor-error-conflict&#39; );
+						} else if (
+							response.error &amp;&amp;
+							$.inArray( response.error.code, whitelistedErrorInfo ) &gt; -1
+						) {
+							msg = response.error.info;
+						} else {
+							msg = mw.msg( &#39;mobile-frontend-editor-error&#39; );
+						}
+
+						self.reportError( msg, data.details );
+						// FIXME: Don&#39;t call a private method that is outside the class.
+						self._showHidden( &#39;.save-header, .save-panel&#39; );
+					}
+				} );
+		},
+
+<span id='EditorOverlay-method-hasChanged'>		/**
+</span>		 * Checks whether the existing content has changed.
+		 * @method
+		 * @return {Boolean}
+		 */
+		hasChanged: function () {
+			return this.api.hasChanged;
+		}
+	} );
+
+	M.define( &#39;modules/editor/EditorOverlay&#39;, EditorOverlay );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

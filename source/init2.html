@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	M.require( &#39;context&#39; ).assertMode( [ &#39;alpha&#39; ] );
+	var bannerImage,
+		page = M.getCurrentPage(),
+		browser = M.require( &#39;browser&#39; ),
+		wikidataID = mw.config.get( &#39;wgWikibaseItemId&#39; ),
+		BannerImage = M.require( &#39;modules/bannerImage/BannerImage&#39; );
+
+	// Load banner images on mobile devices
+	// On pages in the main space which are not main pages
+	if (
+		// MobileDevice
+		!browser.isWideScreen() &amp;&amp;
+		// Set item id or specified in url with query param (wikidataid=Q937)
+		wikidataID &amp;&amp;
+		!page.isMainPage() &amp;&amp;
+		page.getNamespaceId() === 0
+	) {
+		bannerImage = new BannerImage( {
+			itemId: wikidataID
+		} );
+		bannerImage.insertBefore( &#39;#page-actions&#39; );
+	}
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

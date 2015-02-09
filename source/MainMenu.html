@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var MainMenu,
+		browser = M.require( &#39;browser&#39; ),
+		View = M.require( &#39;View&#39; );
+
+<span id='MainMenu'>	/**
+</span>	 * Representation of the main menu
+	 *
+	 * @class MainMenu
+	 * @extends View
+	 */
+	MainMenu = View.extend( {
+<span id='MainMenu-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash
+		 * @cfg {String} defaults.mainMenuButton Selector for the main menu button
+		 */
+		defaults: {
+			el: &#39;#mw-mf-page-left&#39;,
+			mainMenuButton: &#39;#mw-mf-main-menu-button&#39;
+		},
+
+<span id='MainMenu-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 * Remove the nearby menu entry if the browser doesn&#39;t support geo location
+		 */
+		postRender: function () {
+			var self = this;
+
+			if ( !browser.supportsGeoLocation() ) {
+				this.$el.find( &#39;.nearby&#39; ).parent().remove();
+			}
+
+			// Listen to the main menu button clicks
+			$( this.options.mainMenuButton ).off( &#39;click&#39; ).on( &#39;click&#39;, function ( ev ) {
+				if ( self.isOpen() ) {
+					self.closeNavigationDrawers();
+				} else {
+					self.openNavigationDrawer();
+				}
+				ev.preventDefault();
+			} );
+		},
+
+<span id='MainMenu-method-isOpen'>		/**
+</span>		 * Check whether the navigation drawer is open
+		 * @return {Boolean}
+		 */
+		isOpen: function () {
+			// FIXME: We should be moving away from applying classes to the body
+			return $( &#39;body&#39; ).hasClass( &#39;navigation-enabled&#39; );
+		},
+
+<span id='MainMenu-method-closeNavigationDrawers'>		/**
+</span>		 * Close all open navigation drawers
+		 */
+		closeNavigationDrawers: function () {
+			// FIXME: We should be moving away from applying classes to the body
+			$( &#39;body&#39; ).removeClass( &#39;navigation-enabled&#39; )
+				.removeClass( &#39;secondary-navigation-enabled&#39; )
+				.removeClass( &#39;primary-navigation-enabled&#39; );
+		},
+
+<span id='MainMenu-method-openNavigationDrawer'>		/**
+</span>		 * Toggle open navigation drawer
+		 * @param {String} [drawerType] A name that identifies the navigation drawer that
+		 *     should be toggled open. Defaults to &#39;primary&#39;.
+		 */
+		openNavigationDrawer: function ( drawerType ) {
+			// close any existing ones first.
+			this.closeNavigationDrawers();
+			drawerType = drawerType || &#39;primary&#39;;
+			// FIXME: We should be moving away from applying classes to the body
+			$( &#39;body&#39; ).toggleClass( &#39;navigation-enabled&#39; )
+				.toggleClass( drawerType + &#39;-navigation-enabled&#39; );
+		}
+	} );
+
+	M.define( &#39;MainMenu&#39;, MainMenu );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

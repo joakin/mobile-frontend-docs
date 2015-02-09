@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// FIXME: make this an object with a constructor to facilitate testing
+// (see https://bugzilla.wikimedia.org/show_bug.cgi?id=44264)
+<span id='mw-mobileFrontend'>/**
+</span> * mobileFrontend namespace
+ * @class mw.mobileFrontend
+ * @singleton
+ */
+( function ( M, $ ) {
+	var currentPage, skin,
+		PageApi = M.require( &#39;PageApi&#39; ),
+		pageApi = new PageApi(),
+		Page = M.require( &#39;Page&#39; ),
+		MainMenu = M.require( &#39;MainMenu&#39; ),
+		Skin = M.require( &#39;Skin&#39; );
+
+	skin = new Skin( {
+		el: &#39;#mw-mf-viewport&#39;,
+		tabletModules: mw.config.get( &#39;skin&#39; ) === &#39;minerva&#39; ? [ &#39;tablet.scripts&#39; ] : [],
+		page: getCurrentPage(),
+		mainMenu: new MainMenu()
+	} );
+	M.define( &#39;skin&#39;, skin );
+
+	$( window ).on( &#39;resize&#39;, $.proxy( M, &#39;emit&#39;, &#39;resize&#39; ) )
+		.on( &#39;scroll&#39;, $.proxy( M, &#39;emit&#39;, &#39;scroll&#39; ) );
+
+<span id='mw-mobileFrontend-method-getCurrentPage'>	/**
+</span>	 * Get current page view object
+	 * FIXME: Move to M.define( &#39;page&#39; )
+	 * @method
+	 * @return {Page}
+	 */
+	function getCurrentPage() {
+		if ( currentPage ) {
+			return currentPage;
+		} else {
+			return loadCurrentPage();
+		}
+	}
+
+<span id='global-method-loadCurrentPage'>	/**
+</span>	 * Constructs an incomplete Page object representing the currently loaded page.
+	 *
+	 * @method
+	 * @private
+	 * @ignore
+	 */
+	function loadCurrentPage() {
+		var permissions = mw.config.get( &#39;wgRestrictionEdit&#39;, [] );
+		if ( permissions.length === 0 ) {
+			permissions.push( &#39;*&#39; );
+		}
+		currentPage = new Page( {
+			el: &#39;#content&#39;,
+			title: mw.config.get( &#39;wgPageName&#39; ).replace( /_/g, &#39; &#39; ),
+			protection: {
+				edit: permissions
+			},
+			isMainPage: mw.config.get( &#39;wgIsMainPage&#39; ),
+			isWatched: $( &#39;#ca-watch&#39; ).hasClass( &#39;watched&#39; ),
+			sections: pageApi.getSectionsFromHTML( $( &#39;#content&#39; ) ),
+			id: mw.config.get( &#39;wgArticleId&#39; ),
+			namespaceNumber: mw.config.get( &#39;wgNamespaceNumber&#39; )
+		} );
+		return currentPage;
+	}
+
+	$.extend( M, {
+		getCurrentPage: getCurrentPage
+	} );
+
+	M.define( &#39;pageApi&#39;, pageApi );
+
+	// Recruit volunteers through the console (note console.log may not be a function so check via apply)
+	if ( window.console &amp;&amp; window.console.log &amp;&amp; window.console.log.apply &amp;&amp;
+			mw.config.get( &#39;wgMFEnableJSConsoleRecruitment&#39; ) ) {
+		console.log( mw.msg( &#39;mobile-frontend-console-recruit&#39; ) );
+	}
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

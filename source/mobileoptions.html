@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var Checkbox,
+		context = M.require( &#39;context&#39; ),
+		View = M.require( &#39;View&#39; ),
+		settings = M.require( &#39;settings&#39; );
+
+<span id='Checkbox'>	/**
+</span>	 * Wrapper for checkboxes styled as in MediaWiki UI style guide
+	 * @class Checkbox
+	 * @extends View
+	 */
+	Checkbox = View.extend( {
+		template: mw.template.get( &#39;mobile.special.mobileoptions.scripts&#39;, &#39;Checkbox.hogan&#39; ),
+<span id='Checkbox-method-save'>		/**
+</span>		 * Save the current state of the checkbox to the settings
+		 * @method
+		 */
+		save: function () {
+			settings.save( this.options.name, this.cb.prop( &#39;checked&#39; ) ? &#39;true&#39; : &#39;false&#39;, true );
+		},
+<span id='Checkbox-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			var cbview = this;
+			this.cb = this.$( &#39;input[type=checkbox]&#39; );
+			this.cb.prop( &#39;checked&#39;, settings.get( this.options.name, true ) === &#39;true&#39; );
+			$( &#39;form.mw-mf-settings&#39; ).on( &#39;submit&#39;, $.proxy( cbview, &#39;save&#39; ) );
+		}
+	} );
+
+<span id='Checkbox-method-initLocalStorageCheckboxes'>	/**
+</span>	 * Add a new &#39;expand sections&#39; checkbox in alpha.
+	 * The checkbox is used for turning on/off expansion of all sections on page load.
+	 * @method
+	 */
+	function initLocalStorageCheckboxes() {
+		var cb,
+			saveLI = $( &#39;#mw-mf-settings-save&#39; );
+
+		if ( context.isAlphaGroupMember() ) {
+			cb = new Checkbox( {
+				name: &#39;expandSections&#39;,
+				enableMsg: mw.msg( &#39;mobile-frontend-expand-sections-status&#39; ),
+				descriptionMsg: mw.msg( &#39;mobile-frontend-expand-sections-description&#39; )
+			} );
+			cb.insertBefore( saveLI );
+		}
+	}
+
+	$( initLocalStorageCheckboxes );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

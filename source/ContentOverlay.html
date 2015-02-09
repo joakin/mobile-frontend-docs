@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var ContentOverlay,
+		Overlay = M.require( &#39;Overlay&#39; );
+
+<span id='ContentOverlay'>	/**
+</span>	 * An {@link Overlay} that points at an element on the page.
+	 * @class ContentOverlay
+	 * @extends Overlay
+	 */
+	ContentOverlay = Overlay.extend( {
+		className: &#39;overlay content-overlay&#39;,
+<span id='ContentOverlay-property-fullScreen'>		/**
+</span>		 * @inheritdoc
+		 */
+		fullScreen: false,
+<span id='ContentOverlay-property-closeOnContentTap'>		/**
+</span>		 * @inheritdoc
+		 */
+		closeOnContentTap: true,
+<span id='ContentOverlay-property-appendTo'>		/**
+</span>		 * @inheritdoc
+		 */
+		appendTo: &#39;#mw-mf-page-center&#39;,
+<span id='ContentOverlay-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function ( options ) {
+			var $target,
+				self = this;
+
+			Overlay.prototype.postRender.apply( this, arguments );
+			if ( options.target ) {
+				$target = $( options.target );
+				// Ensure we position the overlay correctly but do not show the arrow
+				self._position( $target );
+				// Ensure that any reflows due to tablet styles have happened before showing
+				// the arrow.
+				setTimeout( function () {
+					self.addPointerArrow( $target );
+					M.on( &#39;resize&#39;, $.proxy( self, &#39;refreshPointerArrow&#39;, options.target ) );
+				}, 0 );
+			}
+		},
+<span id='ContentOverlay-method-refreshPointerArrow'>		/**
+</span>		 * Refreshes the pointer arrow.
+		 * @method
+		 * @param {String} target jQuery selector
+		 */
+		refreshPointerArrow: function ( target ) {
+			this.$pointer.remove();
+			this.addPointerArrow( $( target ) );
+		},
+<span id='ContentOverlay-method-_position'>		/**
+</span>		 * Position the overlay under a specified element
+		 * @private
+		 * @param {jQuery.Object} $pa An element that should be pointed at by the overlay
+		 */
+		_position: function ( $pa ) {
+			var paOffset = $pa.offset(),
+				h = $pa.outerHeight( true );
+
+			this.$el.css( &#39;top&#39;, paOffset.top + h );
+		},
+<span id='ContentOverlay-method-addPointerArrow'>		/**
+</span>		 * Position overlay and add pointer arrow that points at specified element
+		 * @method
+		 * @param {jQuery.Object} $pa An element that should be pointed at by the overlay
+		 */
+		addPointerArrow: function ( $pa ) {
+			var tb = &#39;solid 10px transparent&#39;,
+				paOffset = $pa.offset(),
+				overlayOffset = this.$el.offset();
+
+			this._position( $pa );
+			this.$pointer = $( &#39;&lt;div&gt;&#39; ).css( {
+				&#39;border-bottom&#39;: &#39;solid 10px #006398&#39;,
+				&#39;border-right&#39;: tb,
+				&#39;border-left&#39;: tb,
+				position: &#39;absolute&#39;,
+				top: -10,
+				// remove the left offset of the overlay as margin auto may be applied to it
+				left: paOffset.left + 10 - overlayOffset.left
+			} ).appendTo( this.$el );
+		}
+	} );
+	M.define( &#39;modules/tutorials/ContentOverlay&#39;, ContentOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

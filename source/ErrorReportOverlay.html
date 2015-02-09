@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var ErrorReportOverlay,
+		Overlay = M.require( &#39;Overlay&#39; ),
+		api = M.require( &#39;api&#39; ),
+		toast = M.require( &#39;toast&#39; );
+
+<span id='ErrorReportOverlay'>	/**
+</span>	 * @class ErrorReportOverlay
+	 * @extends Overlay
+	 */
+	ErrorReportOverlay = Overlay.extend( {
+<span id='ErrorReportOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.heading Title of the error reporting interface
+		 * @cfg {String} defaults.placeHolder Placeholder text for error field
+		 * @cfg {String} defaults.instructions Instructions about how to use the form
+		 * @cfg {String} defaults.licenseMsg Licensing notice
+		 * FIXME: move messages to i18n once copy is approved
+		 */
+		defaults: {
+			heading: mw.msg( &#39;mobile-frontend-errorreport-heading&#39; ),
+			headerButtonsListClassName: &#39;overlay-action&#39;,
+			headerButtons: [ {
+				className: &#39;continue&#39;,
+				msg: mw.msg( &#39;mobile-frontend-overlay-continue&#39; )
+			} ],
+			placeHolder: mw.msg( &#39;mobile-frontend-errorreport-placeholder&#39; ),
+			instructions: mw.msg( &#39;mobile-frontend-errorreport-instructions&#39; ),
+			licenseMsg: mw.msg( &#39;mobile-frontend-editor-licensing&#39;, mw.config.get( &#39;wgMFLicenseLink&#39; ) )
+		},
+<span id='ErrorReportOverlay-property-templatePartials'>		/**
+</span>		 * @inheritdoc
+		 */
+		templatePartials: {
+			content: mw.template.get( &#39;mobile.errorReport.overlay&#39;, &#39;ErrorReportOverlay.hogan&#39; )
+		},
+<span id='ErrorReportOverlay-property-className'>		/**
+</span>		 * @inheritdoc
+		 */
+		className: &#39;error-reporting-overlay overlay&#39;,
+<span id='ErrorReportOverlay-property-events'>		/**
+</span>		 * @inheritdoc
+		 */
+		events: {
+			&#39;click button.continue&#39;: &#39;onContinueClick&#39;,
+			&#39;click button.submit&#39;: &#39;onSubmitClick&#39;,
+			&#39;keyup .error-field&#39;: &#39;onErrorFieldChange&#39;,
+			&#39;paste .error-field&#39;: &#39;onErrorFieldChange&#39;,
+			&#39;drop .error-field&#39;: &#39;onErrorFieldChange&#39;
+		},
+
+<span id='ErrorReportOverlay-method-_showForm'>		/**
+</span>		 * Show the actual error reporting form
+		 * @method
+		 * @private
+		 * @param {Object} options The options for the overlay
+		 */
+		_showForm: function ( options ) {
+			options.headerButtons = [ {
+				className: &#39;submit&#39;,
+				msg: mw.msg( &#39;mobile-frontend-errorreport-submit&#39; )
+			} ];
+			this.render( options );
+			this.$( &#39;.instructions&#39; ).hide();
+			this.$( &#39;.error-field, .license-panel&#39; ).show();
+			this.$( &#39;button.submit&#39; ).prop( &#39;disabled&#39;, true );
+		},
+
+<span id='ErrorReportOverlay-method-_postErrorReport'>		/**
+</span>		 * Post the error report to the talk page and close the overlay
+		 * @method
+		 * @private
+		 * @param {String} text The text of the error report
+		 * @param {String} title The title of the page to post the report to
+		 */
+		_postErrorReport: function ( text, title ) {
+			var self = this;
+			api.postWithToken( &#39;edit&#39;, {
+				action: &#39;edit&#39;,
+				section: &#39;new&#39;,
+				sectiontitle: mw.msg( &#39;mobile-frontend-errorreport-section-title&#39; ),
+				title: title,
+				summary: mw.msg( &#39;mobile-frontend-errorreport-summary&#39; ),
+				text: text + &#39; ~~~~&#39;
+			} ).done( function () {
+				self.hide();
+				toast.show( mw.msg( &#39;mobile-frontend-errorreport-feedback&#39; ), &#39;toast&#39; );
+			} ).fail( function () {
+				self.hide();
+				toast.show( mw.msg( &#39;mobile-frontend-errorreport-error&#39; ), &#39;toast&#39; );
+			} );
+		},
+
+<span id='ErrorReportOverlay-method-onContinueClick'>		/**
+</span>		 * Continue button click handler
+		 */
+		onContinueClick: function () {
+			this._showForm( this.options );
+		},
+<span id='ErrorReportOverlay-method-onSubmitClick'>		/**
+</span>		 * Submit button click handler
+		 */
+		onSubmitClick: function () {
+			var text = this.$( &#39;.error-field&#39; ).val(),
+				$talk = $( &#39;.talk&#39; );
+
+			if ( text.length &gt; 15 &amp;&amp; $talk !== undefined ) {
+				// Hide the textarea, show a spinner, and post the report
+				this.$( &#39;.error-field&#39; ).hide();
+				this.$( &#39;.spinner&#39; ).show();
+				this._postErrorReport( text, $talk.data( &#39;title&#39; ) );
+			} else {
+				// Close overlay and show error notification
+				window.history.back();
+				toast.show( mw.msg( &#39;mobile-frontend-errorreport-error&#39; ), &#39;toast&#39; );
+			}
+		},
+<span id='ErrorReportOverlay-method-onErrorFieldChange'>		/**
+</span>		 * Error field change handler
+		 * Enable the submit button when the error report is at least 15 characters
+		 */
+		onErrorFieldChange: function () {
+			var self = this;
+
+			// Force length check to be asynchronous in order to handle paste events
+			setTimeout( function () {
+				self.$( &#39;button.submit&#39; ).prop( &#39;disabled&#39;, self.$( &#39;.error-field&#39; ).val().length &lt;= 15 );
+			}, 0 );
+		}
+	} );
+
+	M.define( &#39;errorReport/ErrorReportOverlay&#39;, ErrorReportOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

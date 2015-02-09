@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var PhotoList,
+		icons = M.require( &#39;icons&#39; ),
+		PhotoListApi = M.require( &#39;modules/gallery/PhotoListApi&#39; ),
+		PhotoItem = M.require( &#39;modules/gallery/PhotoItem&#39; ),
+		InfiniteScroll = M.require( &#39;InfiniteScroll&#39; ),
+		View = M.require( &#39;View&#39; );
+
+<span id='PhotoList'>	/**
+</span>	 * Creates a list of photo items
+	 * @class PhotoList
+	 * @uses PhotoListApi
+	 * @uses PhotoItem
+	 * @uses InfiniteScroll
+	 * @extends View
+	 */
+	PhotoList = View.extend( {
+		template: mw.template.get( &#39;mobile.gallery&#39;, &#39;PhotoList.hogan&#39; ),
+<span id='PhotoList-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} HTML of the spinner icon.
+		 */
+		defaults: {
+			spinner: icons.spinner().toHtmlString()
+		},
+<span id='PhotoList-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			var apiOptions;
+
+			if ( options.username ) {
+				apiOptions = {
+					username: options.username
+				};
+			} else if ( options.category ) {
+				apiOptions = {
+					category: options.category
+				};
+			} else {
+				apiOptions = {};
+			}
+			this.api = new PhotoListApi( apiOptions );
+			// Set up infinite scroll
+			this.infiniteScroll = new InfiniteScroll( 1000 );
+			this.infiniteScroll.on( &#39;load&#39;, $.proxy( this, &#39;_loadPhotos&#39; ) );
+			View.prototype.initialize.apply( this, arguments );
+		},
+<span id='PhotoList-method-preRender'>		/** @inheritdoc */
+</span>		preRender: function () {
+			// Disable until we&#39;ve got the list rendered
+			this.infiniteScroll.setElement( this.$el );
+			this.infiniteScroll.disable();
+		},
+<span id='PhotoList-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			this.$end = this.$( &#39;.end&#39; );
+			this.$list = this.$( &#39;ul&#39; );
+
+			this._loadPhotos();
+		},
+<span id='PhotoList-method-isEmpty'>		/**
+</span>		 * Check to see if the current view is an empty list.
+		 * @method
+		 * @return {Boolean} whether no images have been rendered
+		 */
+		isEmpty: function () {
+			return this.$list.find( &#39;li&#39; ).length === 0;
+		},
+<span id='PhotoList-method-showEmptyMessage'>		/**
+</span>		 * Renders an empty message prior to the list.
+		 * FIXME: Should be handled in template, not a method.
+		 * @method
+		 */
+		showEmptyMessage: function () {
+			$( &#39;&lt;p class=&quot;content empty&quot;&gt;&#39; ).text( mw.msg( &#39;mobile-frontend-donate-image-nouploads&#39; ) )
+				.insertBefore( this.$list );
+		},
+<span id='PhotoList-method-hideEmptyMessage'>		/**
+</span>		 * Hides the message saying the list is empty
+		 * FIXME: Should be handled in template, not a method.
+		 * @method
+		 */
+		hideEmptyMessage: function () {
+			this.$( &#39;.empty&#39; ).remove();
+		},
+<span id='PhotoList-method-prependPhoto'>		/**
+</span>		 * Prepend a photo to the view.
+		 * @method
+		 * @param {Object} photoData Options describing a new {PhotoItem}
+		 * FIXME: Code duplication with PhotoList::appendPhoto
+		 */
+		prependPhoto: function ( photoData ) {
+			photoData.width = this.api.getWidth();
+			var photoItem = new PhotoItem( photoData ).prependTo( this.$list );
+			this.hideEmptyMessage();
+			M.emit( &#39;photo-loaded&#39;, photoItem.$el );
+		},
+<span id='PhotoList-method-appendPhoto'>		/**
+</span>		 * Append a photo to the view.
+		 * @method
+		 * @param {Object} photoData Options describing a new {PhotoItem}
+		 */
+		appendPhoto: function ( photoData ) {
+			var photoItem = new PhotoItem( photoData ).appendTo( this.$list );
+			this.hideEmptyMessage();
+<span id='PhotoList-event-photo-loaded'>			/**
+</span>			 * @event photo-loaded
+			 * @param {jQuery.Object} element belonging to view
+			 * Fired when a new {PhotoItem} has been added to the current view.
+			 */
+			M.emit( &#39;photo-loaded&#39;, photoItem.$el );
+		},
+<span id='PhotoList-method-_loadPhotos'>		/**
+</span>		 * Load photos into the view using {{PhotoListApi}} when the end is near
+		 * and no current API requests are underway.
+		 * @method
+		 * @private
+		 */
+		_loadPhotos: function () {
+			var self = this;
+
+			this.api.getPhotos().done( function ( photos ) {
+				if ( photos.length ) {
+					$.each( photos, function ( i, photo ) {
+						self.appendPhoto( photo );
+					} );
+					// try loading more when end is near only if we got photos last time
+					self.infiniteScroll.enable();
+				} else {
+					self.$end.remove();
+					if ( self.isEmpty() ) {
+						self.emit( &#39;empty&#39; );
+						self.showEmptyMessage();
+					}
+				}
+			} ).fail( function () {
+				// try loading again if request failed
+				self.infiniteScroll.enable();
+			} );
+		}
+	} );
+
+	M.define( &#39;modules/gallery/PhotoList&#39;, PhotoList );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

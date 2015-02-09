@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var
+		PhotoUploaderButton = M.require( &#39;modules/uploads/PhotoUploaderButton&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		uploadIcon = new Icon( {
+			name: &#39;addimage-enabled&#39;,
+			additionalClassNames: &#39;enabled&#39;
+		} ),
+		LeadPhotoUploaderButton;
+
+<span id='LeadPhotoUploaderButton'>	/**
+</span>	 * Component for uploading lead photo
+	 * @class LeadPhotoUploaderButton
+	 * @extends PhotoUploaderButton
+	 */
+	LeadPhotoUploaderButton = PhotoUploaderButton.extend( {
+		template: mw.template.get( &#39;mobile.upload.ui&#39;, &#39;LeadButton.hogan&#39; ),
+		className: uploadIcon.getClassName(),
+
+<span id='LeadPhotoUploaderButton-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.buttonCaption Caption that is a call to action to add the
+		 * first image.
+		 * @cfg {Boolean} defaults.insertInPage If the image should be prepended to the wikitext
+		 * of a page specified by options.pageTitle.
+		 * @cfg {String} defaults.el CSS selector of the element in which the
+		 * LeadPhotoUploaderButton is rendered.
+		 */
+		defaults: {
+			buttonCaption: mw.msg( &#39;mobile-frontend-photo-upload&#39; ),
+			insertInPage: true,
+			el: &#39;#ca-upload&#39;
+		},
+
+<span id='LeadPhotoUploaderButton-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			options.pageTitle = mw.config.get( &#39;wgPageName&#39; );
+			PhotoUploaderButton.prototype.initialize.apply( this, arguments );
+		}
+	} );
+
+	LeadPhotoUploaderButton.isSupported = PhotoUploaderButton.isSupported;
+
+	M.define( &#39;modules/uploads/LeadPhotoUploaderButton&#39;, LeadPhotoUploaderButton );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

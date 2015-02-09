@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*
+ * Warn people if they&#39;re trying to switch to desktop but have cookies disabled.
+ */
+
+( function ( M, $ ) {
+
+	var settings = M.require( &#39;settings&#39; ),
+		cookiesEnabled = settings.cookiesEnabled,
+		popup = M.require( &#39;toast&#39; );
+
+<span id='global-method-desktopViewClick'>	/**
+</span>	 * An event handler for the toggle to desktop link.
+	 * If cookies are enabled it will redirect you to desktop site as described in
+	 * the link href associated with the handler.
+	 * If cookies are not enabled, show a toast and die.
+	 * @method
+	 * @ignore
+	 * @returns {Boolean|undefined}
+	 */
+	function desktopViewClick() {
+		if ( !cookiesEnabled() ) {
+			popup.show(
+				mw.msg( &#39;mobile-frontend-cookies-required&#39; ),
+				&#39;toast error&#39;
+			);
+			// Prevent default action
+			return false;
+		}
+	}
+
+	$( &#39;#mw-mf-display-toggle&#39; ).on( &#39;click&#39;, desktopViewClick );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

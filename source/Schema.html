@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var Schema,
+		Class = M.require( &#39;Class&#39; ),
+		context = M.require( &#39;context&#39; ),
+		user = M.require( &#39;user&#39; );
+
+<span id='Schema'>	/**
+</span>	 * @class Schema
+	 * @extends Class
+	 */
+	Schema = Class.extend( {
+<span id='Schema-cfg-defaults'>		/**
+</span>		 * A set of defaults to log to the schema
+		 *
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.mobileMode whether user is in stable beta or alpha
+		 */
+		defaults: {
+			mobileMode: context.getMode()
+		},
+<span id='Schema-property-isSampled'>		/**
+</span>		 * Whether or not the logging is sampled (i.e. not recorded at 100% frequency)
+		 * @property {Boolean}
+		 */
+		isSampled: false,
+<span id='Schema-property-name'>		/**
+</span>		 * Name of Schema to log to
+		 * @property {String}
+		 */
+		name: undefined,
+<span id='Schema-method-initialize'>		/**
+</span>		 * @param {Object} defaults
+		 * @param {String} [schemaName]
+		*/
+		initialize: function ( defaults, schemaName ) {
+			defaults = $.extend( this.defaults, defaults || {} );
+			if ( schemaName ) {
+				this.name = schemaName;
+			}
+			if ( !this.name ) {
+				throw new Error( &#39;Schema needs to define a schema name.&#39; );
+			}
+			this.defaults = defaults;
+			Class.prototype.initialize.apply( this, arguments );
+		},
+<span id='Schema-method-log'>		/**
+</span>		 * Actually log event via EventLogging
+		 * @method
+		 * @param {Object} data to log
+		 * @return {jQuery.Deferred}
+		 */
+		log: function ( data ) {
+			if ( mw.eventLog ) {
+				// Log event if logging schema is not sampled or if user falls into
+				// sampling bucket (currently 50% of all users).
+				// FIXME: Figure out if we need a more flexible sampling system, and if
+				// so, how to implement it with the session ID.
+				if ( !this.isSampled || user.getSessionId().charAt( 0 ) &lt; &#39;V&#39; ) {
+					return mw.eventLog.logEvent( this.name, $.extend( this.defaults, data ) );
+				} else {
+					return $.Deferred().reject( &#39;User not in event sampling bucket.&#39; );
+				}
+			} else {
+				return $.Deferred().reject( &#39;EventLogging not installed.&#39; );
+			}
+		}
+	} );
+
+	M.define( &#39;Schema&#39;, Schema );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

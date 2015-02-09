@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $, OO ) {
+<span id='CategoryLookupInputWidget'>	/**
+</span>	 * @class CategoryLookupInputWidget
+	 * @extends OO.ui.LookupElement
+	 */
+	function CategoryLookupInputWidget( options ) {
+		this.$element = $( &#39;&lt;div&gt;&#39; );
+		this.api = options.api;
+		this.$suggestions = options.suggestions;
+		this.categories = options.categories;
+		this.$saveButton = options.saveButton;
+		options.placeholder = mw.msg( &#39;mobile-frontend-categories-search&#39; );
+		OO.ui.TextInputWidget.call( this, options );
+		OO.ui.LookupElement.call( this, options );
+	}
+	OO.inheritClass( CategoryLookupInputWidget, OO.ui.TextInputWidget );
+	OO.mixinClass( CategoryLookupInputWidget, OO.ui.LookupElement );
+
+<span id='CategoryLookupInputWidget-method-onLookupMenuItemChoose'>	/**
+</span>	 * Handle a click on a suggested item. Add it to the list of added categories and show save button.
+	 * @param {Object} data Data of the clicked element
+	 */
+	CategoryLookupInputWidget.prototype.onLookupMenuItemChoose = function ( data ) {
+		this.$suggestions.append(
+			mw.template.get( &#39;mobile.categories&#39;, &#39;CategoryButton.hogan&#39; ).render( {
+				title: data.data,
+				displayname: data.label
+			} )
+		);
+		this.$saveButton.prop( &#39;disabled&#39;, false );
+	};
+
+<span id='CategoryLookupInputWidget-method-getLookupRequest'>	/**
+</span>	 * Returns the result of the search request.
+	 * @return {jQuery.Deferred}
+	 */
+	CategoryLookupInputWidget.prototype.getLookupRequest = function () {
+		return this.api.search( this.value );
+	};
+
+<span id='CategoryLookupInputWidget-method-getLookupCacheDataFromResponse'>	/**
+</span>	 * Get lookup cache item from server response data.
+	 * @param {Mixed} response Response from server
+	 * @return {Mixed} Cached result response
+	 */
+	CategoryLookupInputWidget.prototype.getLookupCacheDataFromResponse = function ( response ) {
+		var title = new mw.Title( this.value, 14 );
+
+		// add user input as a possible (actually not existing) category
+		response.results.unshift( {
+			title: title.toString(),
+			displayname: title.getNameText()
+		} );
+
+		return response;
+	};
+
+<span id='CategoryLookupInputWidget-method-getLookupMenuOptionsFromData'>	/**
+</span>	 * Get a list of menu item widgets from the data stored by the lookup request&#39;s done handler.
+	 * @param {Mixed} data Cached result data, usually an array
+	 * @return {Array} Array of OO.ui.MenuOptionWidget
+	 */
+	CategoryLookupInputWidget.prototype.getLookupMenuOptionsFromData = function ( data ) {
+		var result = [],
+			self = this;
+
+		$.each( data.results, function ( i, value ) {
+			if (
+				!$( &#39;button[data-title=&quot;&#39; + value.title + &#39;&quot;]&#39; ).length &amp;&amp;
+				$.inArray( value.displayname, self.categories ) === -1
+			) {
+				result.push(
+					new OO.ui.MenuOptionWidget( {
+						data: value.title,
+						label: value.displayname
+					} )
+				);
+			}
+		} );
+		return result;
+	};
+
+	M.define( &#39;modules/categories/CategoryLookupInputWidget&#39;, CategoryLookupInputWidget );
+
+}( mw.mobileFrontend, jQuery, OO ) );
+</pre>
+</body>
+</html>

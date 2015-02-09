@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var Overlay = M.require( &#39;Overlay&#39; ),
+		OtherProjectsOverlay;
+
+<span id='OtherProjectsOverlay'>	/**
+</span>	 * Overlay displaying list of site links to other projects
+	 * @class OtherProjectsOverlay
+	 * @extends Overlay
+	 */
+	OtherProjectsOverlay = Overlay.extend( {
+<span id='OtherProjectsOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 */
+		defaults: {
+			heading: mw.msg( &#39;mobile-frontend-other-projects-overlay-heading&#39; )
+		},
+<span id='OtherProjectsOverlay-property-templatePartials'>		/** @inheritdoc */
+</span>		templatePartials: $.extend( {}, Overlay.prototype.templatePartials, {
+			content: mw.template.get( &#39;mobile.otherProjects&#39;, &#39;content.hogan&#39; )
+		} )
+	} );
+
+	M.define( &#39;modules/projects/OtherProjectsOverlay&#39;, OtherProjectsOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

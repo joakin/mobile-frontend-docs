@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var ReferencesDrawer,
+		Drawer = M.require( &#39;Drawer&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		SchemaMobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		uiSchema = new SchemaMobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; );
+
+<span id='ReferencesDrawer'>	/**
+</span>	 * Drawer for references
+	 * @class ReferencesDrawer
+	 * @extends Drawer
+	 * @uses Icon
+	 */
+	ReferencesDrawer = Drawer.extend( {
+<span id='ReferencesDrawer-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.cancelButton HTML of the button that closes the drawer.
+		 */
+		defaults: {
+			cancelButton: new Icon( {
+				name: &#39;cancel&#39;,
+				additionalClassNames: &#39;cancel&#39;,
+				label: mw.msg( &#39;mobile-frontend-overlay-close&#39; )
+			} ).toHtmlString()
+		},
+<span id='ReferencesDrawer-method-show'>		/** @inheritdoc */
+</span>		show: function () {
+			uiSchema.log( {
+				name: &#39;reference&#39;
+			} );
+			return Drawer.prototype.show.apply( this, arguments );
+		},
+		className: &#39;drawer position-fixed text references&#39;,
+		template: mw.template.get( &#39;mobile.references&#39;, &#39;Drawer.hogan&#39; )
+	} );
+
+	M.define( &#39;modules/references/ReferencesDrawer&#39;, ReferencesDrawer );
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

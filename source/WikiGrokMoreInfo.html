@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var Overlay = M.require( &#39;Overlay&#39; ),
+		WikiGrokMoreInfo;
+
+<span id='WikiGrokMoreInfo'>	/**
+</span>	 * Show more info about the wikigrok
+	 * @class WikiGrokMoreInfo
+	 * FIXME: rename this to WikiGrokMoreInfoOverlay
+	 * @extends Overlay
+	 */
+	WikiGrokMoreInfo = Overlay.extend( {
+<span id='WikiGrokMoreInfo-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.heading Heading of the overlay.
+		 */
+		defaults: {
+			heading: &#39;&lt;strong&gt;About&lt;/strong&gt;&#39;
+		},
+		templatePartials: {
+			content: mw.template.get( &#39;mobile.wikigrok.dialog&#39;, &#39;WikiGrokMoreInfo/content.hogan&#39; )
+		}
+	} );
+
+	M.define( &#39;modules/wikigrok/WikiGrokMoreInfo&#39;, WikiGrokMoreInfo );
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

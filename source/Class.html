@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js"><span id='Class'>/**
+</span> * @class Class
+ */
+( function ( M ) {
+
+<span id='Class-method-extend'>	/**
+</span>	 * Extends a class with new methods and member properties.
+	 *
+	 * @param {Object} prototype Prototype that should be incorporated into the new Class.
+	 * @method
+	 * @return {Class}
+	 */
+	function extend( prototype ) {
+		var key,
+			Parent = this;
+
+<span id='Child'>		/**
+</span>		 * @ignore
+		 */
+		function Child() {
+			return Parent.apply( this, arguments );
+		}
+		OO.inheritClass( Child, Parent );
+		for ( key in prototype ) {
+			Child.prototype[key] = prototype[key];
+		}
+		Child.extend = extend;
+		// FIXME: Use OOJS super here instead.
+		Child.prototype._parent = Parent.prototype;
+		return Child;
+	}
+
+<span id='Class'>	/**
+</span>	 * An extensible program-code-template for creating objects
+	 *
+	 * @class Class
+	 */
+	function Class() {
+		this.initialize.apply( this, arguments );
+	}
+<span id='Class-method-initialize'>	/**
+</span>	 * Constructor, if you override it, use _super().
+	 * @method
+	 */
+	Class.prototype.initialize = function () {};
+	Class.extend = extend;
+
+	M.define( &#39;Class&#39;, Class );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

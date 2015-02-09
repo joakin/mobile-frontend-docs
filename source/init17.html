@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var drawer,
+		context = M.require( &#39;context&#39; );
+
+<span id='global-method-getReference'>	/**
+</span>	 * Return the matched reference among the children of ol.references
+	 * @method
+	 * @ignore
+	 * @param {String} id CSS selector
+	 * @returns {jQuery.Object} reference that matches id
+	 */
+	function getReference( id ) {
+		// Escape (almost) all CSS selector meta characters
+		// see http://www.w3.org/TR/CSS21/syndata.html#value-def-identifier
+		var meta = /[!&quot;$%&amp;&#39;()*+,.\/:;&lt;=&gt;?@[\\\]^`{|}~]/g;
+		id = id.replace( meta, &#39;\\$&amp;&#39; );
+		// Use find rather than string concatenation
+		return $( &#39;ol.references&#39; ).find( id );
+	}
+
+<span id='global-method-showReference'>	/**
+</span>	 * Show reference
+	 * @method
+	 * @ignore
+	 * @param {jQuery.Event} ev Event object
+	 */
+	function showReference( ev ) {
+		var $dest = $( this ),
+			href = $dest.attr( &#39;href&#39; );
+
+		drawer.render( {
+			title: $dest.text(),
+			text: getReference( href ).html()
+		} );
+		ev.preventDefault();
+		//don&#39;t hide drawer (stop propagation of click) if it is already shown (e.g. click another reference)
+		if ( drawer.isVisible() ) {
+			ev.stopPropagation();
+		} else {
+			// use setTimeout so that browser calculates dimensions before show()
+			setTimeout( $.proxy( drawer, &#39;show&#39; ), 0 );
+		}
+	}
+
+<span id='global-method-setup'>	/**
+</span>	 * Make references clickable and show a drawer when clicked on.
+	 * @method
+	 * @ignore
+	 * @param {Page} page
+	 */
+	function setup( page ) {
+		var $container = page ? page.$el : $( &#39;#content&#39; ),
+			module, view, ReferencesDrawer;
+
+		if ( context.isBetaGroupMember() ) {
+			module = &#39;mobile.references.beta&#39;;
+			view = &#39;modules/references/ReferencesDrawerBeta&#39;;
+		} else {
+			module = &#39;mobile.references&#39;;
+			view = &#39;modules/references/ReferencesDrawer&#39;;
+		}
+
+		mw.loader.using( module ).done( function () {
+			ReferencesDrawer = M.require( view );
+			drawer = new ReferencesDrawer();
+			$container.find( &#39;sup a&#39; ).off( &#39;click&#39; ).on( &#39;click&#39;, showReference );
+			$container.find( &#39;.mw-cite-backlink a&#39; ).off( &#39;click&#39; );
+		} );
+
+	}
+
+	$( function () {
+		setup();
+	} );
+
+	M.define( &#39;references&#39;, {
+		setup: setup
+	} );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

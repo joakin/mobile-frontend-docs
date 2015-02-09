@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var TableOfContents,
+		SchemaMobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		uiSchema = new SchemaMobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; ),
+		View = M.require( &#39;View&#39; ),
+		Icon = M.require( &#39;Icon&#39; );
+
+<span id='TableOfContents'>	/**
+</span>	 * View for table of contents
+	 * @class TableOfContents
+	 * @extends View
+	 * @uses Icon
+	 * @uses SchemaMobileWebClickTracking
+	 */
+	TableOfContents = View.extend( {
+		templatePartials: {
+			tocHeading: mw.template.get( &#39;mobile.toc&#39;, &#39;heading.hogan&#39; )
+		},
+<span id='TableOfContents-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.tocIcon HTML of the Table of Contents icon.
+		 * @cfg {String} defaults.contentsMsg TOC contents message.
+		 */
+		defaults: {
+			tocIcon: new Icon( {
+				name: &#39;toc&#39;,
+				additionalClassNames: &#39;toc-button&#39;
+			} ).toHtmlString(),
+			contentsMsg: mw.msg( &#39;toc&#39; )
+		},
+		tagName: &#39;div&#39;,
+		className: &#39;toc-mobile&#39;,
+		template: mw.template.get( &#39;mobile.toc&#39;, &#39;toc.hogan&#39; ),
+		events: {
+			// Click tracking for table of contents so we can see if people interact with it
+			&#39;click h2&#39;: &#39;onTocToggle&#39;,
+			&#39;click a&#39;: &#39;onLinkClick&#39;
+		},
+<span id='TableOfContents-method-onTocToggle'>		/**
+</span>		 * Log toggling the header
+		 */
+		onTocToggle: function () {
+			uiSchema.log( {
+				name: &#39;page-toc-toggle&#39;
+			} );
+		},
+<span id='TableOfContents-method-onLinkClick'>		/**
+</span>		 * Log clicking a TOC link
+		 */
+		onLinkClick: function () {
+			uiSchema.log( {
+				name: &#39;page-toc-link&#39;
+			} );
+		}
+	} );
+
+	M.define( &#39;modules/toc/TableOfContents&#39;, TableOfContents );
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

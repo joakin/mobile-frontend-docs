@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var SchemaMobileWebEditing,
+		user = M.require( &#39;user&#39; ),
+		Schema = M.require( &#39;Schema&#39; );
+
+<span id='SchemaMobileWebEditing'>	/**
+</span>	 * @class SchemaMobileWebEditing
+	 * @extends Schema
+	 */
+	SchemaMobileWebEditing = Schema.extend( {
+<span id='SchemaMobileWebEditing-property-name'>		/** @inheritdoc **/
+</span>		name: &#39;MobileWebEditing&#39;,
+<span id='SchemaMobileWebEditing-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 *
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {Number} defaults.pageId The value of the wgArticleId config variable
+		 * @cfg {String} defaults.token Unique session ID for the user
+		 * @cfg {Number} defaults.revId The value of the wgRevisionId config variable
+		 * @cfg {Number} defaults.namespace The value of the wgNamespaceNumber config variable
+		 * @cfg {Boolean} defaults.isTestA Whether this is the A test in A/B test
+		 * @cfg {String|undefined} defaults.username Username if the user is logged in, otherwise -
+		 * undefined. Assigning undefined will make event logger omit this property when sending
+		 * the data to a server. According to the schema username is optional.
+		 * @cfg {Number|undefined} defaults.userEditCount The number of edits the user has made
+		 * if the user is logged in, otherwise - undefined. Assigning undefined will make event
+		 * logger omit this property when sending the data to a server. According to the schema
+		 * userEditCount is optional.
+		 */
+		defaults: $.extend( {}, Schema.prototype.defaults, {
+			pageId: mw.config.get( &#39;wgArticleId&#39; ),
+			token: user.getSessionId(),
+			revId: mw.config.get( &#39;wgRevisionId&#39; ),
+			namespace: mw.config.get( &#39;wgNamespaceNumber&#39; ),
+			isTestA: user.inUserBucketA(),
+			// FIXME: Introduce a SchemaWithUser class that has username and userEditCount
+			username: user.getName() || undefined,
+			userEditCount: typeof user.getEditCount() === &#39;number&#39; ? user.getEditCount() : undefined
+		} )
+	} );
+
+	M.define( &#39;loggingSchemas/SchemaMobileWebEditing&#39;, SchemaMobileWebEditing );
+
+} )( mw.mobileFrontend, jQuery );
+</pre>
+</body>
+</html>

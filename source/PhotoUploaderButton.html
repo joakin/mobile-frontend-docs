@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var browser = M.require( &#39;browser&#39; ),
+		View = M.require( &#39;View&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		photoIcon = new Icon( {
+			name: &#39;photo&#39;,
+			hasText: true,
+			additionalClassNames: &#39;mw-ui-progressive mw-ui-button button&#39;
+		} ),
+		router = M.require( &#39;router&#39; ),
+		PhotoUploaderButton;
+
+<span id='PhotoUploaderButton'>	/**
+</span>	 * @class PhotoUploaderButton
+	 * @extends View
+	 * @uses Icon
+	 * PhotoUploaderButton is a component for uploading images to the wiki.
+	 *
+	 *     @example
+	 *     &lt;code&gt;
+	 *     var photoUploaderButton = new PhotoUploaderButton( {
+	 *         buttonCaption: &#39;Add a photo&#39;,
+	 *     } );
+	 *     photoUploaderButton.
+	 *         insertAfter( &#39;h1&#39; ).
+	 *         on( &#39;upload&#39;, function ( fileName, url ) {
+	 *             $( &#39;.someImage&#39; ).attr( &#39;src&#39;, url );
+	 *         } );
+	 *     &lt;/code&gt;
+	 *
+	 * @param {Object} options Uploader options.
+	 * @param {String} options.buttonCaption Caption for the upload button.
+	 * @param {Boolean} options.insertInPage If the image should be prepended
+	 * to the wikitext of a page specified by options.pageTitle.
+	 * @param {String} options.pageTitle Title of the page to which the image
+	 * belongs (image name will be based on this) and to which it should be
+	 * prepended (if options.insertInPage is true).
+	 * @param {String} options.funnel Funnel for EventLogging.
+	 */
+	PhotoUploaderButton = View.extend( {
+		template: mw.template.get( &#39;mobile.upload.ui&#39;, &#39;Button.hogan&#39; ),
+		className: photoIcon.getClassName(),
+		events: {
+			&#39;change input&#39;: &#39;onFileSelected&#39;
+		},
+
+<span id='PhotoUploaderButton-method-onFileSelected'>		/**
+</span>		 * Event handler, called when a file is selected in the input
+		 * @param {jQuery.Event} ev
+		 */
+		onFileSelected: function ( ev ) {
+			var $input = $( ev.target );
+			this.handleFile( $input[0].files[0] );
+			// clear so that change event is fired again when user selects the same file
+			$input.val( &#39;&#39; );
+		},
+
+<span id='PhotoUploaderButton-method-handleFile'>		/**
+</span>		 * Handle a selected file for upload, emit event and route to the
+		 * appropiate url
+		 * @param {File} file associated with file upload input
+		 */
+		handleFile: function ( file ) {
+			// FIXME: this is hacky but it would be hard to pass a file in a route
+			M.emit( &#39;_upload-preview&#39;, file );
+			router.navigate( &#39;#/upload-preview/&#39; + this.options.funnel );
+		},
+
+<span id='PhotoUploaderButton-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			this.$el.removeClass( &#39;hidden&#39; );
+		}
+	} );
+
+	PhotoUploaderButton.isSupported = browser.supportsFileUploads();
+
+	M.define( &#39;modules/uploads/PhotoUploaderButton&#39;, PhotoUploaderButton );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

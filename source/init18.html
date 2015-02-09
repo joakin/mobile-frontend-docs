@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var SearchOverlay = M.require( &#39;modules/search/SearchOverlay&#39; ),
+		SchemaMobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		uiSchema = new SchemaMobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; ),
+		util = M.require( &#39;util&#39; ),
+		query = util.query,
+		context = M.require( &#39;context&#39; ),
+		router = M.require( &#39;router&#39; ),
+		browser = M.require( &#39;browser&#39; );
+
+<span id='global-method-openSearchOverlay'>	/**
+</span>	 * Reveal the search overlay
+	 * @param {jQuery.Event} ev
+	 * @ignore
+	 */
+	function openSearchOverlay( ev ) {
+		// in alpha we are dealing with an &#39;a&#39;, not an &#39;input&#39;
+		var searchTerm = ( context.isAlphaGroupMember() ) ? query.search : $( this ).val();
+
+		ev.preventDefault();
+		uiSchema.log( {
+			name: &#39;search&#39;
+		} );
+		new SearchOverlay( {
+			searchTerm: searchTerm
+		} ).show();
+		router.navigate( &#39;/search&#39; );
+	}
+
+	// See https://phabricator.wikimedia.org/T76882 for why we disable search on Android 2
+	if ( browser.isAndroid2() ) {
+		$( &#39;body&#39; ).addClass( &#39;client-use-basic-search&#39; );
+	} else {
+		// don&#39;t use focus event (https://bugzilla.wikimedia.org/show_bug.cgi?id=47499)
+		//
+		// focus() (see SearchOverlay#show) opens virtual keyboard only if triggered
+		// from user context event, so using it in route callback won&#39;t work
+		// http://stackoverflow.com/questions/6837543/show-virtual-keyboard-on-mobile-phones-in-javascript
+		$( &#39;#searchInput&#39; ).on( &#39;click&#39;, openSearchOverlay )
+			// FIXME: Review the need for this, especially given latest alpha developments
+			// Apparently needed for main menu to work correctly.
+			.prop( &#39;readonly&#39;, true );
+	}
+
+	// FIXME: ugly hack that removes search from browser history when navigating
+	// to search results (we can&#39;t rely on History API yet)
+	// alpha does it differently in lazyload.js
+	if ( !context.isAlphaGroupMember() ) {
+		M.on( &#39;search-results&#39;, function ( overlay ) {
+			overlay.$( &#39;.results a&#39; ).on( &#39;click&#39;, function () {
+				var href = $( this ).attr( &#39;href&#39; );
+				router.back().done( function () {
+					window.location.href = href;
+				} );
+				// Prevent the link from working and prevent the closing of the overlay
+				// by an event upstream which would trigger browser back on the clicked link
+				return false;
+			} );
+		} );
+	}
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

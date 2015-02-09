@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// Add EventLogging to hamburger menu
+( function ( M, $ ) {
+	var SchemaMobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		context = M.require( &#39;context&#39; ),
+		mainMenuSchema = new SchemaMobileWebClickTracking( {}, &#39;MobileWebMainMenuClickTracking&#39; ),
+		uiSchema = new SchemaMobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; );
+
+<span id='global-method-mainMenuIconSelector'>	/**
+</span>	 * Get the icon selector for the given main menu element (depending on alpha/stable mode)
+	 * @ignore
+	 * @param {String} name Name of the main menu element
+	 * @return {String} Complete selector
+	 */
+	function mainMenuIconSelector( name ) {
+		// FIXME: Remove when mw-ui-icon is in stable
+		if ( !context.isAlphaGroupMember() ) {
+			return &#39;#mw-mf-page-left .icon-&#39; + name;
+		} else {
+			return &#39;#mw-mf-page-left .mw-ui-icon-&#39; + name;
+		}
+	}
+
+	$( function () {
+		var $profileLink = $( &#39;#mw-mf-last-modified a&#39; )
+			.filter( function () {
+				return $( this ).children().length === 0;
+			} );
+
+		$( &#39;#mw-mf-main-menu-button&#39; ).on( &#39;click&#39;, function () {
+			uiSchema.log( {
+				name: &#39;hamburger&#39;
+			} );
+		} );
+
+		mainMenuSchema.hijackLink( &#39;.icon-home&#39;, &#39;home&#39; );
+		mainMenuSchema.hijackLink( mainMenuIconSelector( &#39;random&#39; ), &#39;random&#39; );
+		mainMenuSchema.hijackLink( mainMenuIconSelector( &#39;nearby&#39; ), &#39;nearby&#39; );
+		mainMenuSchema.hijackLink( mainMenuIconSelector( &#39;watchlist&#39; ), &#39;watchlist&#39; );
+		mainMenuSchema.hijackLink( mainMenuIconSelector( &#39;settings&#39; ), &#39;settings&#39; );
+		mainMenuSchema.hijackLink( mainMenuIconSelector( &#39;uploads&#39; ), &#39;uploads&#39; );
+		mainMenuSchema.hijackLink( mainMenuIconSelector( &#39;profile&#39; ), &#39;profile&#39; );
+		mainMenuSchema.hijackLink( mainMenuIconSelector( &#39;anon&#39; ), &#39;login&#39; );
+		mainMenuSchema.hijackLink( mainMenuIconSelector( &#39;secondary-logout&#39; ), &#39;logout&#39; );
+		uiSchema.hijackLink( $( &#39;#mw-mf-last-modified a span&#39; ).parent(), &#39;lastmodified-history&#39; );
+		uiSchema.hijackLink( $profileLink, &#39;lastmodified-profile&#39; );
+		uiSchema.hijackLink( &#39;.nearby-button&#39;, &#39;nearby-button&#39; );
+	} );
+} )( mw.mobileFrontend, jQuery );
+</pre>
+</body>
+</html>

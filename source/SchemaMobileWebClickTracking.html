@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var SchemaMobileWebClickTracking,
+		Schema = M.require( &#39;Schema&#39; ),
+		user = M.require( &#39;user&#39; ),
+		s = M.require( &#39;settings&#39; );
+
+<span id='global-method-futureLog'>	/**
+</span>	 * Using localStorage track an event but delay recording it on the
+	 * server until the next page load. Throw an error if schema is not
+	 * one of the predefined values.
+	 *
+	 * @method
+	 * @ignore
+	 * @param {String} schemaName valid schema name.
+	 * @param {String} name of click tracking event to log
+	 * @param {String} href the link that has been clicked.
+	 */
+	function futureLog( schemaName, name, href ) {
+		s.save( &#39;MobileWebClickTracking-schema&#39;, schemaName );
+		s.save( &#39;MobileWebClickTracking-name&#39;, name );
+		s.save( &#39;MobileWebClickTracking-href&#39;, href );
+	}
+
+<span id='global-method-logPastEvent'>	/**
+</span>	 * Log a past click tracking event to the server.
+	 * @method
+	 * @ignore
+	 */
+	function logPastEvent() {
+		var schema,
+			schemaName = s.get( &#39;MobileWebClickTracking-schema&#39; ),
+			name = s.get( &#39;MobileWebClickTracking-name&#39; ),
+			href = s.get( &#39;MobileWebClickTracking-href&#39; );
+
+		// Make sure they do not log a second time...
+		if ( schemaName &amp;&amp; name &amp;&amp; href ) {
+			s.remove( &#39;MobileWebClickTracking-schema&#39; );
+			s.remove( &#39;MobileWebClickTracking-name&#39; );
+			s.remove( &#39;MobileWebClickTracking-href&#39; );
+			schema = new SchemaMobileWebClickTracking( {
+				name: name,
+				destination: href
+			}, schemaName );
+			schema.log();
+		}
+	}
+
+<span id='SchemaMobileWebClickTracking'>	/**
+</span>	 * @class SchemaMobileWebClickTracking
+	 * @extends Schema
+	 */
+	SchemaMobileWebClickTracking = Schema.extend( {
+<span id='SchemaMobileWebClickTracking-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 *
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String|undefined} defaults.username Username if the user is logged in, otherwise -
+		 * undefined. Assigning undefined will make event logger omit this property when sending
+		 * the data to a server. According to the schema username is optional.
+		 * @cfg {Number|undefined} defaults.userEditCount The number of edits the user has made
+		 * if the user is logged in, otherwise - undefined. Assigning undefined will make event
+		 * logger omit this property when sending the data to a server. According to the schema
+		 * userEditCount is optional.
+		 */
+		defaults: $.extend( {}, Schema.prototype.defaults, {
+			// FIXME: Introduce a SchemaWithUser class that has username and userEditCount
+			username: user.getName() || undefined,
+			userEditCount: typeof user.getEditCount() === &#39;number&#39; ? user.getEditCount() : undefined
+		} ),
+<span id='SchemaMobileWebClickTracking-property-isSampled'>		/**
+</span>		 * @inheritdoc
+		 */
+		isSampled: true,
+<span id='global-method-hijackLink'>		/**
+</span>		 * Record a click to a link in the schema. Throw an error if schema is not
+		 * one of the predefined values.
+		 *
+		 * @method
+		 * @ignore
+		 * @param {String} selector of element
+		 * @param {String} name unique to this click tracking event that will allow
+		 * you to distinguish it from others.
+		 */
+		hijackLink: function ( selector, name ) {
+			var schemaName = this.name;
+			$( selector ).on( &#39;click&#39;, function () {
+				futureLog( schemaName, name, $( this ).attr( &#39;href&#39; ) );
+			} );
+		}
+	} );
+
+	// FIXME: Refactor so it&#39;s possible for different schemas to log future events.
+	// Then this should be moved to init.js - including a class should not have side effects.
+	logPastEvent();
+
+	M.define( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39;, SchemaMobileWebClickTracking );
+} )( mw.mobileFrontend, jQuery );
+</pre>
+</body>
+</html>

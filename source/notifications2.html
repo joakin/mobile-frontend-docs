@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var api = M.require( &#39;api&#39; ),
+		notContinue = null,
+		header = &#39;&#39;,
+		processing = false;
+
+<span id='global-method-initialize'>	/**
+</span>	 * Initialises JavaScript on the mobile version of Special:Notifications
+	 * @method
+	 * @ignore
+	 */
+	function initialize() {
+		// Convert more link into a button and bind to loadMore function
+		$( &#39;#mw-echo-more&#39; )
+			.addClass( &#39;button&#39; )
+			.on( &#39;click&#39;, function ( ev ) {
+				ev.preventDefault();
+				if ( !processing ) {
+					processing = true;
+					loadMore();
+				}
+			} );
+		notContinue = mw.config.get( &#39;wgEchoNextContinue&#39; );
+		header = mw.config.get( &#39;wgEchoDateHeader&#39; );
+		mw.loader.using( &#39;ext.echo.base&#39;, function () {
+			$( &#39;.mw-echo-notification&#39; ).each( function () {
+				mw.echo.setupNotificationLogging( $( this ), &#39;mobile-archive&#39;, true );
+			} );
+		} );
+	}
+
+<span id='global-method-loadMore'>	/**
+</span>	 * Load more notification records.
+	 * @method
+	 * @ignore
+	 */
+	function loadMore() {
+		var notifications, data, container, $li, unread = [];
+
+		// FIXME: Move to NotificationApi class
+		api.get( {
+			action: &#39;query&#39;,
+			meta: &#39;notifications&#39;,
+			notformat: &#39;html&#39;,
+			notprop: &#39;index|list&#39;,
+			notcontinue: notContinue,
+			notlimit: mw.config.get( &#39;wgEchoDisplayNum&#39; )
+		} ).done( function ( result ) {
+			container = $( &#39;#mw-echo-special-container&#39; );
+			notifications = result.query.notifications;
+			unread = [];
+
+			$.each( notifications.index, function ( index, id ) {
+				data = notifications.list[id];
+
+				if ( header !== data.timestamp.date ) {
+					header = data.timestamp.date;
+					$( &#39;&lt;li&gt;&#39; ).addClass( &#39;mw-echo-date-section&#39; ).append( header ).appendTo( container );
+				}
+
+				$li = $( &#39;&lt;li&gt;&#39; )
+					.data( &#39;details&#39;, data )
+					.data( &#39;id&#39;, id )
+					.addClass( &#39;mw-echo-notification&#39; )
+					.attr( {
+						// To facilitate debugging / bug reports
+						&#39;data-notification-event&#39;: data.id
+					} )
+					.append( data[&#39;*&#39;] )
+					.appendTo( container );
+
+				if ( !data.read ) {
+					$li.addClass( &#39;mw-echo-unread&#39; );
+					unread.push( id );
+				}
+				mw.loader.using( &#39;ext.echo.base&#39;, function () {
+					mw.echo.setupNotificationLogging( $li, &#39;mobile-archive&#39;, true );
+				} );
+			} );
+
+			notContinue = notifications[&#39;continue&#39;];
+			if ( unread.length &gt; 0 ) {
+				markAsRead( unread );
+			} else {
+				onSuccess();
+			}
+		} ).fail( function () {
+			onError();
+		} );
+	}
+
+<span id='global-method-markAsRead'>	/**
+</span>	 * Mark notifications as read.
+	 * @method
+	 * @param {Array} unread id of unread ids to mark as read
+	 * @ignore
+	 */
+	function markAsRead( unread ) {
+		// FIXME: Move to NotificationApi class
+		api.postWithToken( &#39;edit&#39;, {
+			action: &#39;echomarkread&#39;,
+			list: unread.join( &#39;|&#39; )
+		} ).done( onSuccess ).fail( onError );
+	}
+
+<span id='global-method-onSuccess'>	/**
+</span>	 * onSuccess callback
+	 * Sets processing to false. Also hides #mw-echo-more if notContinue is false.
+	 * @method
+	 * @ignore
+	 * @private
+	 */
+	function onSuccess() {
+		if ( !notContinue ) {
+			$( &#39;#mw-echo-more&#39; ).hide();
+		}
+		processing = false;
+	}
+
+<span id='global-method-onError'>	/**
+</span>	 * Set #mw-echo-more text to the contents of echo-load-more-error message .
+	 * Also sets processing to false.
+	 * onError callback
+	 * @method
+	 * @ignore
+	 * @private
+	 */
+	function onError() {
+		// TODO: Show detail error message based on error code
+		$( &#39;#mw-echo-more&#39; ).text( mw.msg( &#39;echo-load-more-error&#39; ) );
+		processing = false;
+	}
+
+	initialize();
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function () {
+	var loader;
+
+<span id='ModuleLoader'>	/**
+</span>	 * Class for managing modules
+	 *
+	 * A module in this context is essentially a Javascript class (not to be confused with
+	 * ResourceLoader modules).
+	 *
+	 * @class ModuleLoader
+	 */
+	function ModuleLoader() {
+<span id='ModuleLoader-property-register'>		/**
+</span>		 * @property {Object} register of defined modules
+		 * @private
+		 */
+		this._register = {};
+	}
+
+	ModuleLoader.prototype = {
+<span id='ModuleLoader-method-require'>		/**
+</span>		 * Require (import) a module previously defined using define().
+		 *
+		 * @param {String} id Required module id.
+		 * @return {Object} Required module, can be any JavaScript object.
+		 */
+		require: function ( id ) {
+			if ( !this._register.hasOwnProperty( id ) ) {
+				throw new Error( &#39;Module not found: &#39; + id );
+			}
+			return this._register[ id ];
+		},
+
+<span id='ModuleLoader-method-define'>		/**
+</span>		 * Define a module which can be later required (imported) using require().
+		 *
+		 * @param {String} id Defined module id.
+		 * @param {Object} obj Defined module body, can be any JavaScript object.
+		 */
+		define: function ( id, obj ) {
+			if ( this._register.hasOwnProperty( id ) ) {
+				throw new Error( &#39;Module already exists: &#39; + id );
+			}
+			this._register[ id ] = obj;
+		}
+	};
+
+	loader = new ModuleLoader();
+
+<span id='mw-mobileFrontend'>	/**
+</span>	 *
+	 * FIXME: In a wonderful world all this could run in a file called init.js,
+	 * all the above code would be core and everyone would be happy.
+	 * @class mw.mobileFrontend
+	 * @singleton
+	 */
+	mw.mobileFrontend = {
+<span id='mw-mobileFrontend-method-define'>		/**
+</span>		 * @see ModuleLoader#define
+		 */
+		define: function () {
+			loader.define.apply( loader, arguments );
+		},
+<span id='mw-mobileFrontend-method-require'>		/**
+</span>		 * @see ModuleLoader#require
+		 */
+		require: function () {
+			return loader.require.apply( loader, arguments );
+		}
+	};
+
+	// inception to support testing (!!)
+	mw.mobileFrontend.define( &#39;ModuleLoader&#39;, ModuleLoader );
+
+} () );
+</pre>
+</body>
+</html>

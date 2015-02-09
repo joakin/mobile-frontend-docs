@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( $ ) {
+	// Redirect users with javascript to the proper editor
+	var redirectTarget = $( &#39;#mw-mf-editor&#39; ).data( &#39;targeturl&#39; );
+	if ( redirectTarget !== undefined ) {
+		location.replace( redirectTarget );
+	} else {
+		location.replace( &#39;index.php?title=&#39; + mw.config.get( &#39;wgMainPageTitle&#39; ) );
+	}
+} )( jQuery );
+</pre>
+</body>
+</html>

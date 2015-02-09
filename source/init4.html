@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var loader = M.require( &#39;loader&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; );
+
+	overlayManager.add( /^\/commons-category\/(.+)$/, function ( title ) {
+		var d = $.Deferred();
+
+		loader.loadModule( &#39;mobile.commonsCategory&#39; ).done( function () {
+			var CommonsCategoryOverlay = M.require( &#39;modules/commonsCategory/CommonsCategoryOverlay&#39; );
+			d.resolve(
+				new CommonsCategoryOverlay( {
+					title: title
+				} )
+			);
+		} );
+		return d;
+	} );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

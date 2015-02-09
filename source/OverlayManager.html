@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var
+		Class = M.require( &#39;Class&#39; ),
+		router = M.require( &#39;router&#39; ),
+		OverlayManager, overlayManager;
+
+<span id='OverlayManager'>	/**
+</span>	 * Manages opening and closing overlays when the URL hash changes to one
+	 * of the registered values (see OverlayManager.add()).
+	 *
+	 * This allows overlays to function like real pages, with similar browser back/forward
+	 * and refresh behavior.
+	 *
+	 * @class OverlayManager
+	 * @extends Class
+	 */
+	OverlayManager = Class.extend( {
+<span id='OverlayManager-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( router ) {
+			router.on( &#39;route&#39;, $.proxy( this, &#39;_checkRoute&#39; ) );
+			this.router = router;
+			// use an object instead of an array for entries so that we don&#39;t
+			// duplicate entries that already exist
+			this.entries = {};
+			// stack of all the open overlays, stack[0] is the latest one
+			this.stack = [];
+			this.hideCurrent = true;
+		},
+
+<span id='OverlayManager-method-_onHideOverlay'>		/**
+</span>		 * Don&#39;t try to hide the active overlay on a route change event triggered
+		 * by hiding another overlay.
+		 * Called when hiding an overlay.
+		 * @method
+		 * @private
+		 */
+		_onHideOverlay: function () {
+			this.hideCurrent = false;
+
+			this.router.back();
+		},
+
+<span id='OverlayManager-method-_showOverlay'>		/**
+</span>		 * Show the overlay and bind the &#39;_om_hide&#39; event to _onHideOverlay.
+		 * @method
+		 * @private
+		 * @param {Overlay} overlay to show
+		 */
+		_showOverlay: function ( overlay ) {
+			// if hidden using overlay (not hardware) button, update the state
+			overlay.once( &#39;_om_hide&#39;, $.proxy( this, &#39;_onHideOverlay&#39; ) );
+
+			overlay.show();
+		},
+
+<span id='OverlayManager-method-_hideOverlay'>		/**
+</span>		 * Hide overlay
+		 * @method
+		 * @private
+		 * @param {Overlay} overlay to hide
+		 * @returns {Boolean} Whether the overlay has been hidden
+		 */
+		_hideOverlay: function ( overlay ) {
+			var result;
+
+			// remove the callback for updating state when overlay closed using
+			// overlay close button
+			overlay.off( &#39;_om_hide&#39; );
+
+			result = overlay.hide( this.stack.length &gt; 1 );
+
+			// if closing prevented, reattach the callback
+			if ( !result ) {
+				overlay.once( &#39;_om_hide&#39;, $.proxy( this, &#39;_onHideOverlay&#39; ) );
+			}
+
+			return result;
+		},
+
+<span id='OverlayManager-method-_processMatch'>		/**
+</span>		 * Show match&#39;s overlay if match is not null.
+		 * @method
+		 * @private
+		 * @param {Object|null} match Object with factory function&#39;s result. null if no match.
+		 */
+		_processMatch: function ( match ) {
+			var factoryResult,
+				self = this;
+
+<span id='global-method-attachHideEvent'>			/**
+</span>			 * Attach an event to the overlays hide event
+			 * @ignore
+			 * @param {Overlay} overlay
+			 */
+			function attachHideEvent( overlay ) {
+				overlay.on( &#39;hide&#39;, function () {
+					overlay.emit( &#39;_om_hide&#39; );
+				} );
+			}
+
+			if ( match ) {
+				if ( match.overlay ) {
+					// if the match is an overlay that was previously opened, reuse it
+					self._showOverlay( match.overlay );
+				} else {
+					// else create an overlay using the factory function result (either
+					// a promise or an overlay)
+					factoryResult = match.factoryResult;
+					// http://stackoverflow.com/a/13075985/365238
+					if ( $.isFunction( factoryResult.promise ) ) {
+						factoryResult.done( function ( overlay ) {
+							match.overlay = overlay;
+							attachHideEvent( overlay );
+							self._showOverlay( overlay );
+						} );
+					} else {
+						match.overlay = factoryResult;
+						attachHideEvent( match.overlay );
+						self._showOverlay( factoryResult );
+					}
+				}
+			}
+		},
+
+<span id='OverlayManager-method-_checkRoute'>		/**
+</span>		 * A callback for Router&#39;s `route` event.
+		 * @method
+		 * @private
+		 * @param {jQuery.Event} ev Event object.
+		 */
+		_checkRoute: function ( ev ) {
+			var
+				self = this,
+				current = this.stack[0],
+				match;
+
+			$.each( this.entries, function ( id, entry ) {
+				match = self._matchRoute( ev.path, entry );
+				// if matched (match not equal to null), break out of the loop
+				return match === null;
+			} );
+
+			// if there is an overlay in the stack and it&#39;s opened, try to close it
+			if (
+				current &amp;&amp;
+				current.overlay !== undefined &amp;&amp;
+				this.hideCurrent &amp;&amp;
+				!this._hideOverlay( current.overlay )
+			) {
+				// if hide prevented, prevent route change event
+				ev.preventDefault();
+			} else if ( !match ) {
+				// if hidden and no new matches, reset the stack
+				this.stack = [];
+			}
+
+			this.hideCurrent = true;
+			this._processMatch( match );
+		},
+
+<span id='OverlayManager-method-_matchRoute'>		/**
+</span>		 * Check if a given path matches one of the entries.
+		 * @method
+		 * @private
+		 * @param {String} path Path (hash) to check.
+		 * @param {Object} entry Entry object created in OverlayManager#add.
+		 * @return {Object|null} Match object with factory function&#39;s result. Returns null if no match.
+		 * or null if no match.
+		 */
+		_matchRoute: function ( path, entry ) {
+			var
+				match = path.match( entry.route ),
+				previous = this.stack[1],
+				next;
+
+			if ( match ) {
+				// if previous stacked overlay&#39;s path matches, assume we&#39;re going back
+				// and reuse a previously opened overlay
+				if ( previous &amp;&amp; previous.path === path ) {
+					this.stack.shift();
+					return previous;
+				} else {
+					next = {
+						path: path,
+						factoryResult: entry.factory.apply( this, match.slice( 1 ) )
+					};
+					this.stack.unshift( next );
+					return next;
+				}
+			}
+
+			return null;
+		},
+
+<span id='OverlayManager-method-add'>		/**
+</span>		 * Add an overlay that should be shown for a specific fragment identifier.
+		 *
+		 * The following code will display an overlay whenever a user visits a URL that
+		 * end with &#39;#/hi/name&#39;. The value of `name` will be passed to the overlay.
+		 *
+		 *     @example
+		 *     overlayManager.add( /\/hi\/(.*)/, function ( name ) {
+		 *       var factoryResult = $.Deferred();
+		 *
+		 *       mw.using( &#39;mobile.HiOverlay&#39;, function () {
+		 *         var HiOverlay = M.require( &#39;HiOverlay&#39; );
+		 *         factoryResult.resolve( new HiOverlay( { name: name } ) );
+		 *       } );
+		 *
+		 *       return factoryResult;
+		 *     } );
+		 *
+		 * @method
+		 * @param {RegExp} route route regular expression, optionally with parameters.
+		 * @param {Function} factory a function returning an overlay or a $.Deferred
+		 * which resolves to an overlay.
+		 */
+		add: function ( route, factory ) {
+			var entry = {
+				route: route,
+				factory: factory
+			};
+
+			this.entries[route] = entry;
+			// check if overlay should be shown for the current path
+			this._processMatch( this._matchRoute( this.router.getPath(), entry ) );
+		},
+
+<span id='OverlayManager-method-replaceCurrent'>		/**
+</span>		 * Replace the currently displayed overlay with a new overlay without changing the
+		 * URL. This is useful for when you want to switch overlays, but don&#39;t want to
+		 * change the back button or close box behavior.
+		 *
+		 * @method
+		 * @param {Object} overlay The overlay to display
+		 */
+		replaceCurrent: function ( overlay ) {
+			if ( this.stack.length === 0 ) {
+				throw new Error( &#39;Trying to replace OverlayManager\&#39;s current overlay, but stack is empty&#39; );
+			}
+			this._hideOverlay( this.stack[0].overlay );
+			this.stack[0].overlay = overlay;
+			this._showOverlay( overlay );
+		}
+	} );
+
+	overlayManager = new OverlayManager( router );
+
+	M.define( &#39;overlayManager&#39;, overlayManager );
+	M.define( &#39;OverlayManager&#39;, OverlayManager );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

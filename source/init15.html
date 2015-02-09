@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var loader = M.require( &#39;loader&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		wbId = mw.config.get( &#39;wgWikibaseItemId&#39; );
+
+	if ( wbId ) {
+		overlayManager.add( /^\/other-projects$/, function () {
+			var result = $.Deferred();
+
+			loader.loadModule( &#39;mobile.otherProjects&#39;, true ).done( function ( loadingOverlay ) {
+				var OtherProjectsOverlay = M.require( &#39;modules/projects/OtherProjectsOverlay&#39; ),
+					WikiDataApi = M.require( &#39;modules/wikigrok/WikiDataApi&#39; ),
+					api = new WikiDataApi( {
+						itemId: wbId
+					} );
+
+				api.getSiteLinks().done( function ( siteLinks ) {
+					loadingOverlay.hide();
+					result.resolve( new OtherProjectsOverlay( {
+						links: siteLinks
+					} ) );
+				} );
+			} );
+			return result;
+		} );
+
+		// Add the button
+		$( &#39;&lt;a class=&quot;mw-ui-button&quot;&gt;&#39; )
+			.attr( &#39;href&#39;, &#39;#/other-projects&#39; )
+			.text( mw.msg( &#39;mobile-frontend-other-project-label&#39; ) )
+			.appendTo( &#39;#page-secondary-actions&#39; );
+	}
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

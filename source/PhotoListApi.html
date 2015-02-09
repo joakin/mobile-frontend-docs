@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var PhotoListApi, Api,
+		IMAGE_WIDTH = mw.config.get( &#39;wgMFThumbnailSizes&#39; ).medium,
+		corsUrl = mw.config.get( &#39;wgMFPhotoUploadEndpoint&#39; );
+
+	if ( corsUrl ) {
+		Api = M.require( &#39;modules/ForeignApi&#39; );
+	} else {
+		Api = M.require( &#39;api&#39; ).Api;
+	}
+
+<span id='PhotoListApi'>	/**
+</span>	 * API for retrieving gallery photos
+	 * @class PhotoListApi
+	 * @extends Api
+	 */
+	PhotoListApi = Api.extend( {
+		apiUrl: corsUrl || Api.prototype.apiUrl,
+<span id='PhotoListApi-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			Api.prototype.initialize.apply( this, arguments );
+			this.username = options.username;
+			this.category = options.category;
+			this.limit = 10;
+		},
+<span id='PhotoListApi-method-_getDescription'>		/**
+</span>		 * Returns a description based on the file name using
+		 * a regular expression that strips the file type suffix,
+		 * namespace prefix and any
+		 * date suffix in format YYYY-MM-DD HH-MM
+		 * @method
+		 * @private
+		 * @param {String} title Title of file
+		 * @return {String} Description for file
+		 */
+		_getDescription: function ( title ) {
+			title = title.replace( /\.[^\. ]+$/, &#39;&#39; ); // replace filename suffix
+			// strip namespace: prefix and date suffix from remainder
+			return title.replace( /^[^:]*:/, &#39;&#39; )
+				.replace( / \d{4}-\d{1,2}-\d{1,2} \d{1,2}-\d{1,2}$/, &#39;&#39; );
+		},
+<span id='PhotoListApi-method-getWidth'>		/**
+</span>		 * Returns the value in pixels of a medium thumbnail
+		 * @method
+		 */
+		getWidth: function () {
+			return IMAGE_WIDTH;
+		},
+<span id='PhotoListApi-method-_getImageDataFromPage'>		/**
+</span>		 * Extracts image data from api response
+		 * @method
+		 * @private
+		 * @param {Object} page as returned by api request
+		 * @return {Object} describing image.
+		 */
+		_getImageDataFromPage: function ( page ) {
+			var img = page.imageinfo[0];
+			return {
+				url: img.thumburl,
+				title: page.title,
+				timestamp: img.timestamp,
+				description: this._getDescription( page.title ),
+				descriptionUrl: img.descriptionurl
+			};
+		},
+<span id='PhotoListApi-method-getQuery'>		/**
+</span>		 * Get the associated query needed to retrieve images from API based
+		 * on currently configured options.
+		 * @return {Object}
+		 */
+		getQuery: function () {
+			var query = {
+				action: &#39;query&#39;,
+				prop: &#39;imageinfo&#39;,
+				// FIXME: [API] have to request timestamp since api returns an object
+				// rather than an array thus we need a way to sort
+				iiprop: &#39;url|timestamp&#39;,
+				iiurlwidth: IMAGE_WIDTH
+			};
+
+			if ( this.username ) {
+				$.extend( query, {
+					generator: &#39;allimages&#39;,
+					gaiuser: this.username,
+					gaisort: &#39;timestamp&#39;,
+					gaidir: &#39;descending&#39;,
+					gailimit: this.limit,
+					gaicontinue: this.endTimestamp
+				} );
+			} else if ( this.category ) {
+				$.extend( query, {
+					generator: &#39;categorymembers&#39;,
+					gcmtitle: &#39;Category:&#39; + this.category,
+					gcmtype: &#39;file&#39;,
+					// FIXME [API] a lot of duplication follows due to the silly way generators work
+					gcmdir: &#39;descending&#39;,
+					gcmlimit: this.limit,
+					gcmcontinue: this.endTimestamp
+				} );
+			}
+			return query;
+		},
+<span id='PhotoListApi-method-getPhotos'>		/**
+</span>		 * Request photos beginning with the current value of endTimestamp
+		 * @return {jQuery.Deferred} where parameter is a list of JavaScript objects describing an image.
+		 */
+		getPhotos: function () {
+			var self = this,
+				result = $.Deferred();
+
+			// FIXME: Don&#39;t simply use this.endTimestamp as initially this value is undefined
+			if ( this.endTimestamp !== false ) {
+				this.ajax( this.getQuery() ).done( function ( resp ) {
+					if ( resp.query &amp;&amp; resp.query.pages ) {
+						// FIXME: [API] in an ideal world imageData would be a sorted array
+						var photos = $.map( resp.query.pages, function ( page ) {
+								return self._getImageDataFromPage.call( self, page );
+							} ).sort( function ( a, b ) {
+								return a.timestamp &lt; b.timestamp ? 1 : -1;
+							} );
+
+						if ( resp[&#39;query-continue&#39;] ) {
+							// FIXME: API I hate you.
+							if ( self.category ) {
+								self.endTimestamp = resp[&#39;query-continue&#39;].categorymembers.gcmcontinue;
+							} else {
+								self.endTimestamp = resp[&#39;query-continue&#39;].allimages.gaicontinue;
+							}
+						} else {
+							self.endTimestamp = false;
+						}
+						// FIXME: Should reply with a list of PhotoItem or Photo classes.
+						result.resolve( photos );
+					} else {
+						result.resolve( [] );
+					}
+				} ).fail( $.proxy( result, &#39;reject&#39; ) );
+			} else {
+				result.resolve( [] );
+			}
+
+			return result;
+		}
+	} );
+
+	M.define( &#39;modules/gallery/PhotoListApi&#39;, PhotoListApi );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

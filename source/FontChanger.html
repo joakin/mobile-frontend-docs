@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var FontChanger,
+		Drawer = M.require( &#39;Drawer&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		settings = M.require( &#39;settings&#39; ),
+		MobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		uiSchema = new MobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; );
+
+<span id='FontChanger'>	/**
+</span>	 * FontChanger wrapper
+	 * @class FontChanger
+	 * @extends Drawer
+	 */
+	FontChanger = Drawer.extend( {
+		defaults: {
+			cancelButton: new Icon( {
+				name: &#39;cancel&#39;,
+				additionalClassNames: &#39;cancel&#39;,
+				label: mw.msg( &#39;mobile-frontend-overlay-close&#39; )
+			} ).toHtmlString(),
+			descriptionMsg: mw.msg( &#39;mobile-frontend-fontchanger-desc&#39; )
+		},
+		className: &#39;drawer position-fixed fontchanger&#39;,
+		template: mw.template.get( &#39;mobile.fontchanger&#39;, &#39;FontChanger.hogan&#39; ),
+		// if the user wants to look at more then one text position, close the drawer only
+		// with a click on the close button
+		closeOnScroll: false,
+
+<span id='FontChanger-method-initialize'>		/**
+</span>		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			var enabled = &#39;mw-ui-progressive&#39;,
+				userFontSize = settings.get( &#39;userFontSize&#39;, true );
+
+			switch ( userFontSize ) {
+				case &#39;70&#39;:
+					options.size1 = enabled;
+					break;
+				case &#39;130&#39;:
+					options.size3 = enabled;
+					break;
+				default:
+					// default = 100
+					options.size2 = enabled;
+					break;
+			}
+
+			Drawer.prototype.initialize.apply( this, arguments );
+		},
+
+<span id='FontChanger-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function () {
+			var self = this;
+
+			Drawer.prototype.postRender.apply( this, arguments );
+
+			// set handler for clicks on the size buttons
+			this.$( &#39;.sizes&#39; ).find( &#39;div&#39; ).each( function () {
+				var $el = $( this );
+
+				$el.on( &#39;click&#39;, function () {
+					self.setNewSize( $el );
+
+					uiSchema.log( {
+						name: &#39;fontchanger-font-change&#39;
+					} );
+				} );
+			} );
+		},
+
+<span id='FontChanger-method-setNewSize'>		/**
+</span>		 * Set a new font size and change the drawer content
+		 * @param {jQuery.Object} $el Clicked font size element
+		 */
+		setNewSize: function ( $el ) {
+			var fontSize = $el.data( &#39;size&#39; );
+
+			// save and change the new font size
+			settings.save( &#39;userFontSize&#39;, fontSize, true );
+			$( &#39;.content&#39; ).css( &#39;font-size&#39;, fontSize + &#39;%&#39; );
+
+			// update drawer
+			this.$( &#39;.sizes&#39; ).find( &#39;div&#39; ).each( function () {
+				$( this ).removeClass( &#39;mw-ui-progressive&#39; );
+			} );
+			// add class to actual used size
+			$el.addClass( &#39;mw-ui-progressive&#39; );
+		}
+	} );
+
+	M.define( &#39;modules/fontchanger/FontChanger&#39;, FontChanger );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

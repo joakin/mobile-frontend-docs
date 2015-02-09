@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var Drawer = M.require( &#39;Drawer&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		CtaDrawer;
+
+<span id='CtaDrawer'>	/**
+</span>	 * This creates the drawer at the bottom of the screen that appears when an anonymous
+	 * user tries to perform an action that requires being logged in. It presents the user
+	 * with options to log in or sign up for a new account.
+	 * @class CtaDrawer
+	 * @extends Drawer
+	 */
+	CtaDrawer = Drawer.extend( {
+<span id='CtaDrawer-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.collapse HTML of the button that dismisses the CtaDrawer.
+		 * @cfg {String} defaults.login Caption for the login button.
+		 * @cfg {String} defaults.signup Caption for the signup button.
+		 */
+		defaults: {
+			collapseButton: new Icon( {
+				name: &#39;arrow-down&#39;,
+				additionalClassNames: &#39;cancel&#39;
+			} ).toHtmlString(),
+			loginCaption: mw.msg( &#39;mobile-frontend-watchlist-cta-button-login&#39; ),
+			signupCaption: mw.msg( &#39;mobile-frontend-watchlist-cta-button-signup&#39; )
+		},
+		template: mw.template.get( &#39;mobile.drawers&#39;, &#39;Cta.hogan&#39; ),
+
+<span id='CtaDrawer-method-preRender'>		/** @inheritdoc */
+</span>		preRender: function ( options ) {
+			var params = $.extend( {
+					// use wgPageName as this includes the namespace if outside Main
+					returnto: options.returnTo || mw.config.get( &#39;wgPageName&#39; )
+				}, options.queryParams ),
+				signupParams = $.extend( {
+					type: &#39;signup&#39;
+				}, options.signupQueryParams );
+
+			options.loginUrl = mw.util.getUrl( &#39;Special:UserLogin&#39;, params );
+			options.signupUrl = mw.util.getUrl( &#39;Special:UserLogin&#39;, $.extend( params, signupParams ) );
+		}
+	} );
+
+	M.define( &#39;CtaDrawer&#39;, CtaDrawer );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

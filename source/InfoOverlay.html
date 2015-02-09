@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var InfoOverlay,
+		mainMenu = M.require( &#39;skin&#39; ).getMainMenu(),
+		Icon = M.require( &#39;Icon&#39; ),
+		Overlay = M.require( &#39;Overlay&#39; ),
+		wikiGrokRoulette = M.require( &#39;modules/wikiGrokRoulette/wikiGrokRoulette&#39; );
+
+<span id='InfoOverlay'>	/**
+</span>	 * Displays WikiGrokRoulette info
+	 * @class InfoOverlay
+	 * @extends Overlay
+	 * @uses Icon
+	 */
+	InfoOverlay = Overlay.extend( {
+		className: &#39;overlay wikigrok-roulette-info-overlay&#39;,
+<span id='InfoOverlay-property-template'>		/**
+</span>		 * @inheritdoc
+		 */
+		template: mw.template.get( &#39;mobile.wikigrok.roulette&#39;, &#39;InfoOverlay.hogan&#39; ),
+<span id='InfoOverlay-property-defaults'>		/**
+</span>		 * @inheritdoc
+		 */
+		defaults: {
+			hamburgerIcon: new Icon( {
+				additionalClassNames: &#39;mainmenu&#39;,
+				name: &#39;mainmenu&#39;,
+				label: mw.msg( &#39;mobile-frontend-main-menu-button-tooltip&#39; ),
+				title:  mw.msg( &#39;mobile-frontend-main-menu-button-tooltip&#39; )
+			} ).toHtmlString(),
+			titleMsg: mw.msg( &#39;mobile-frontend-wikigrok-roulette-info-overlay-title&#39; ),
+			contentMsg: mw.msg( &#39;mobile-frontend-wikigrok-roulette-info-overlay-content&#39; ),
+			startBtnLbl: mw.msg( &#39;mobile-frontend-wikigrok-roulette-info-overlay-start-button-label&#39; )
+		},
+<span id='InfoOverlay-property-events'>		/**
+</span>		 * @inheritdoc
+		 */
+		events: {
+			&#39;click .mainmenu&#39;: &#39;onClickMainMenu&#39;,
+			&#39;click .lets-go&#39;: &#39;onClickLetsGo&#39;
+		},
+<span id='InfoOverlay-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function () {
+			// Silently fetch the next page
+			wikiGrokRoulette.getNextPage();
+		},
+<span id='InfoOverlay-method-onClickMainMenu'>		/**
+</span>		 * Hide the info and show the navigation drawer
+		 */
+		onClickMainMenu: function () {
+			this.hide();
+			mainMenu.openNavigationDrawer( &#39;&#39; );
+			this.detach();
+		},
+<span id='InfoOverlay-method-onClickLetsGo'>		/**
+</span>		 * Navigate to the next page that has a wikigrok campaign.
+		 * Also remember that the user has seen this info.
+		 */
+		onClickLetsGo: function () {
+			// remember so that we don&#39;t show this the next time
+			localStorage.setItem( &#39;hasWikiGrokRouletteInfoBeenShown&#39;, &#39;1&#39; );
+			wikiGrokRoulette.navigateToNextPage();
+		}
+	} );
+
+	M.define( &#39;modules/wikiGrokRoulette/InfoOverlay&#39;, InfoOverlay );
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

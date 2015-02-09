@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var Overlay = M.require( &#39;Overlay&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		ImageApi = M.require( &#39;modules/mediaViewer/ImageApi&#39; ),
+		ImageOverlay, api;
+
+	api = new ImageApi();
+
+<span id='ImageOverlay'>	/**
+</span>	 * Displays images in full screen overlay
+	 * @class ImageOverlay
+	 * @extends Overlay
+	 * @uses Icon
+	 * @uses ImageApi
+	 */
+	ImageOverlay = Overlay.extend( {
+		// allow pinch zooming
+		hasFixedHeader: false,
+		className: &#39;overlay media-viewer&#39;,
+		template: mw.template.get( &#39;mobile.mediaViewer&#39;, &#39;Overlay.hogan&#39; ),
+
+<span id='ImageOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.cancelButton HTML of the cancel button.
+		 * @cfg {String} defaults.detailsMsg Caption for a button leading to the details
+		 * of a media file (e.g. an image) in a preview.
+		 * @cfg {String} defaults.licenseLinkMsg Link to license information in media viewer.
+		 */
+		defaults: {
+			cancelButton: new Icon( {
+				tagName: &#39;button&#39;,
+				// Uses a dark theme so swap out the icon
+				name: &#39;cancel-light&#39;,
+				additionalClassNames: &#39;cancel&#39;,
+				label: mw.msg( &#39;mobile-frontend-overlay-close&#39; )
+			} ).toHtmlString(),
+			detailsMsg: mw.msg( &#39;mobile-frontend-media-details&#39; ),
+			licenseLinkMsg: mw.msg( &#39;mobile-frontend-media-license-link&#39; )
+		},
+
+<span id='ImageOverlay-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function ( options ) {
+			var $img,
+				self = this;
+
+			this.$details = this.$( &#39;.details&#39; );
+
+			Overlay.prototype.postRender.apply( this, arguments );
+
+			api.getThumb( options.title ).done( function ( data ) {
+				var author, url = data.descriptionurl + &#39;#mw-jump-to-license&#39;;
+
+<span id='global-method-removeLoader'>				/**
+</span>				 * Hide the spinner
+				 * @method
+				 * @ignore
+				 */
+				function removeLoader() {
+					self.$( &#39;.spinner&#39; ).hide();
+				}
+
+				self.thumbWidth = data.thumbwidth;
+				self.thumbHeight = data.thumbheight;
+				self.imgRatio = data.thumbwidth / data.thumbheight;
+				$img = $( &#39;&lt;img&gt;&#39; ).attr( &#39;src&#39;, data.thumburl ).attr( &#39;alt&#39;, options.caption );
+				self.$( &#39;.image&#39; ).append( $img );
+
+				if ( $img.prop( &#39;complete&#39; ) ) {
+					// if the image is loaded from browser cache, &quot;load&quot; event may not fire
+					// (http://stackoverflow.com/questions/910727/jquery-event-for-images-loaded#comment10616132_1110094)
+					removeLoader();
+				} else {
+					// remove the loader when the image is loaded
+					$img.on( &#39;load&#39;, removeLoader );
+				}
+				self._positionImage();
+				self.$( &#39;.details a&#39; ).attr( &#39;href&#39;, url );
+				if ( data.extmetadata ) {
+					// Add license information
+					if ( data.extmetadata.LicenseShortName ) {
+						self.$( &#39;.license a&#39; )
+							.text( data.extmetadata.LicenseShortName.value )
+							.attr( &#39;href&#39;, url );
+					}
+					// Add author information
+					if ( data.extmetadata.Artist ) {
+						// Strip any tags
+						author = data.extmetadata.Artist.value.replace( /&lt;.*?&gt;/g, &#39;&#39; );
+						self.$( &#39;.license&#39; ).prepend( author + &#39; &amp;bull; &#39; );
+					}
+				}
+			} );
+
+			$( window ).on( &#39;resize&#39;, $.proxy( this, &#39;_positionImage&#39; ) );
+
+			this.$( &#39;.image-wrapper&#39; ).on( &#39;click&#39;, function () {
+				self.$details.toggle();
+				self._positionImage();
+			} );
+		},
+
+<span id='ImageOverlay-method-show'>		/** @inheritdoc */
+</span>		show: function () {
+			Overlay.prototype.show.apply( this, arguments );
+			this._positionImage();
+		},
+
+<span id='ImageOverlay-method-_positionImage'>		/**
+</span>		 * Fit the image into the window if its dimensions are bigger than the window dimensions.
+		 * Compare window width to height ratio to that of image width to height when setting
+		 * image width or height.
+		 * @method
+		 * @private
+		 */
+		_positionImage: function () {
+			// with a hidden details box we have a little bit more space, we just need to use it
+			var detailsHeight = !this.$details.is( &#39;:visible&#39; ) ? 0 : this.$details.outerHeight(),
+				windowWidth = $( window ).width(),
+				windowHeight = $( window ).height() - detailsHeight,
+				windowRatio = windowWidth / windowHeight,
+				$img = this.$( &#39;img&#39; );
+
+			if ( this.imgRatio &gt; windowRatio ) {
+				if ( windowWidth &lt; this.thumbWidth ) {
+					$img.css( {
+						width: windowWidth,
+						height: &#39;auto&#39;
+					} );
+				}
+			} else {
+				if ( windowHeight &lt; this.thumbHeight ) {
+					$img.css( {
+						width: &#39;auto&#39;,
+						height: windowHeight
+					} );
+				}
+			}
+			$( &#39;.image-wrapper&#39; ).css( &#39;bottom&#39;, detailsHeight );
+		}
+	} );
+	M.define( &#39;modules/mediaViewer/ImageOverlay&#39;, ImageOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

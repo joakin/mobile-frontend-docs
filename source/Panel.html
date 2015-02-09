@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var View = M.require( &#39;View&#39; ),
+		Panel;
+
+<span id='Panel'>	/**
+</span>	 * An abstract class for a {@link View} that comprises a simple panel.
+	 * @class Panel
+	 * @extends View
+	 */
+	Panel = View.extend( {
+		className: &#39;panel&#39;,
+		// in milliseconds
+		minHideDelay: 10,
+		appendToElement: &#39;#content&#39;,
+
+<span id='Panel-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			var self = this;
+			this.$( &#39;.cancel&#39; ).click( function ( ev ) {
+				ev.preventDefault();
+				self.hide();
+			} );
+			// This module might be loaded at the top of the page e.g. Special:Uploads
+			// Thus ensure we wait for the DOM to be loaded
+			$( function () {
+				self.appendTo( self.appendToElement );
+			} );
+		},
+
+<span id='Panel-method-show'>		/**
+</span>		 * Shows panel after a slight delay
+		 * @method
+		 */
+		show: function () {
+			var self = this;
+
+			if ( !self.isVisible() ) {
+				// use setTimeout to allow the browser to redraw if render() was called
+				// just before show(); this is important for animations to work
+				// (0ms doesn&#39;t work on Firefox, 10ms is enough)
+				setTimeout( function () {
+					self.$el.addClass( &#39;visible&#39; );
+					self.emit( &#39;show&#39; );
+				}, self.minHideDelay );
+			}
+		},
+
+<span id='Panel-method-hide'>		/**
+</span>		 * Hides panel
+		 * @method
+		 */
+		hide: function () {
+			var self = this;
+
+			// see comment in show()
+			setTimeout( function () {
+				self.$el.removeClass( &#39;visible&#39; );
+				self.emit( &#39;hide&#39; );
+			}, self.minHideDelay );
+		},
+
+<span id='Panel-method-isVisible'>		/**
+</span>		 * Determines if panel is visible
+		 * @method
+		 */
+		isVisible: function () {
+			return this.$el.hasClass( &#39;visible&#39; );
+		},
+
+<span id='Panel-method-toggle'>		/**
+</span>		 * Shows or hides panel
+		 * @method
+		 */
+		toggle: function () {
+			if ( this.isVisible() ) {
+				this.hide();
+			} else {
+				this.show();
+			}
+		}
+	} );
+
+	M.define( &#39;Panel&#39;, Panel );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

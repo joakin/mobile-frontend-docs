@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var Overlay = M.require( &#39;Overlay&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		icon = new Icon( {
+			name: &#39;cleanup-gray&#39;,
+			additionalClassNames: &#39;issue-notice&#39;,
+			hasText: true
+		} ),
+		CleanupOverlay;
+
+<span id='CleanupOverlay'>	/**
+</span>	 * Overlay for displaying page issues
+	 * @class CleanupOverlay
+	 * @extends Overlay
+	 */
+	CleanupOverlay = Overlay.extend( {
+		templatePartials: {
+			content: mw.template.get( &#39;mobile.issues&#39;, &#39;OverlayContent.hogan&#39; )
+		},
+<span id='CleanupOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.className Class name of the &#39;cleanup-gray&#39; icon.
+		 */
+		defaults: {
+			className: icon.getClassName()
+		},
+<span id='CleanupOverlay-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			options.heading = &#39;&lt;strong&gt;&#39; + options.headingText + &#39;&lt;/strong&gt;&#39;;
+			Overlay.prototype.initialize.call( this, options );
+		}
+	} );
+	M.define( &#39;modules/issues/CleanupOverlay&#39;, CleanupOverlay );
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

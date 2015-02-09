@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var
+		Overlay = M.require( &#39;Overlay&#39; ),
+		popup = M.require( &#39;toast&#39; ),
+		api = M.require( &#39;api&#39; ),
+		user = M.require( &#39;user&#39; ),
+		Page = M.require( &#39;Page&#39; ),
+		pageApi = M.require( &#39;pageApi&#39; ),
+		context = M.require( &#39;context&#39; ),
+		TalkSectionOverlay;
+
+<span id='TalkSectionOverlay'>	/**
+</span>	 * Overlay for showing talk page section
+	 * @class TalkSectionOverlay
+	 * @extends Overlay
+	 * @uses Api
+	 * @uses Page
+	 * @uses Toast
+	 */
+	TalkSectionOverlay = Overlay.extend( {
+		templatePartials: {
+			header: mw.template.get( &#39;mobile.talk.overlays&#39;, &#39;Section/header.hogan&#39; ),
+			content: mw.template.get( &#39;mobile.talk.overlays&#39;, &#39;Section/content.hogan&#39; )
+		},
+<span id='TalkSectionOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.title Title.
+		 * @cfg {Section} defaults.section that is currently being viewed in overlay.
+		 * @cfg {String} defaults.reply Reply heading.
+		 * @cfg {String} defaults.info Message that informs the user their talk reply will be
+		 * automatically signed.
+		 */
+		defaults: $.extend( {}, Overlay.prototype.defaults, {
+			title: undefined,
+			section: undefined,
+			reply: mw.msg( &#39;mobile-frontend-talk-reply&#39; ),
+			info: mw.msg( &#39;mobile-frontend-talk-reply-info&#39; )
+		} ),
+<span id='TalkSectionOverlay-method-postRender'>		/**
+</span>		 * Fetches the talk topics of the page specified in options.title
+		 * if options.section is not defined.
+		 * @inheritdoc
+		 */
+		postRender: function ( options ) {
+			var self = this;
+
+			Overlay.prototype.postRender.apply( this, arguments );
+			if ( !options.section ) {
+				pageApi.getPage( options.title ).done( function ( pageData ) {
+					var page = new Page( pageData );
+					options.section = page.getSection( options.id );
+					self.render( options );
+				} );
+			} else {
+				this.$( &#39;.loading&#39; ).remove();
+				this._enableComments( options.title, options.id );
+			}
+		},
+<span id='TalkSectionOverlay-method-_enableComments'>		/**
+</span>		 * Enables comments on the current rendered talk topic
+		 * @method
+		 * @private
+		 * @param {String} title of the talk page with `Talk` prefix to post to
+		 * @param {Number} id of the sub section to open
+		 */
+		_enableComments: function ( title, id ) {
+			var self = this,
+				$comment = this.$( &#39;.comment&#39; ),
+				$textarea = $comment.find( &#39;textarea&#39; );
+
+			if ( user.isAnon() || !context.isAlphaGroupMember() ) {
+				$comment.remove();
+			} else {
+				$textarea.on( &#39;focus&#39;, function () {
+					$textarea.removeClass( &#39;error&#39; );
+				} );
+				$comment.find( &#39;button&#39; ).on( &#39;click&#39;, function () {
+					var val = $textarea.val();
+					if ( val ) {
+						$comment.hide();
+						self.$( &#39;.loading&#39; ).show();
+						// sign and add newline to front
+						val = &#39;\n\n&#39; + val + &#39; ~~~~&#39;;
+						api.postWithToken( &#39;edit&#39;, {
+							action: &#39;edit&#39;,
+							title: title,
+							section: id,
+							appendtext: val
+						} ).done( function ( data ) {
+							self.$( &#39;.loading&#39; ).hide();
+							$comment.show();
+							if ( data.error ) {
+								$textarea.addClass( &#39;error&#39; );
+							} else {
+								self.hide();
+								popup.show( mw.msg( &#39;mobile-frontend-talk-reply-success&#39; ), &#39;toast&#39; );
+								// invalidate the cache
+								pageApi.invalidatePage( title );
+							}
+						} );
+					} else {
+						$textarea.addClass( &#39;error&#39; );
+					}
+				} );
+			}
+		}
+	} );
+
+	M.define( &#39;modules/talk/TalkSectionOverlay&#39;, TalkSectionOverlay );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

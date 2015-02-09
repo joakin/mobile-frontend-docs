@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var
+		funnel = $.cookie( &#39;mwUploadsFunnel&#39; ) || &#39;article&#39;,
+		LeadPhotoUploaderButton = M.require( &#39;modules/uploads/LeadPhotoUploaderButton&#39; ),
+		user = M.require( &#39;user&#39; ),
+		isSupported = LeadPhotoUploaderButton.isSupported;
+
+<span id='global-method-needsPhoto'>	/**
+</span>	 * Checks whether there is no suitable image in the container.
+	 * Judges this based on selector in wgMFLeadPhotoUploadCssSelector
+	 *
+	 * @param {jQuery.Object} $container
+	 * @return {Boolean}
+	 * @ignore
+	 */
+	function needsPhoto( $container ) {
+		return $container.find( mw.config.get( &#39;wgMFLeadPhotoUploadCssSelector&#39; ) ).length === 0;
+	}
+
+	// reset the funnel cookie as it is no longer valid
+	if ( funnel ) {
+		$.cookie( &#39;mwUploadsFunnel&#39;, null );
+	}
+
+<span id='global-method-initialize'>	/**
+</span>	 * Initialise interface would uploading an image to the top of the current page.
+	 *
+	 * @ignore
+	 */
+	function initialize() {
+		var
+			page = M.getCurrentPage(),
+			$lead = page.getLeadSectionElement(),
+			inFileNamespace = page.inNamespace( &#39;file&#39; ),
+			validNamespace = ( page.inNamespace( &#39;&#39; ) || page.inNamespace( &#39;user&#39; ) || inFileNamespace );
+
+		// Only show upload page action in File namespace if page doesn&#39;t already exist.
+		if ( inFileNamespace ) {
+			if ( mw.config.get( &#39;wgArticleId&#39; ) ) {
+				$( &#39;#ca-upload&#39; ).remove();
+			}
+		} else {
+			if ( !page.isEditable( user ) || !validNamespace ||
+					// FIXME: Anonymous users cannot upload but really this should also check rights of user via getRights
+					// (without triggering an additional HTTP request)
+					user.isAnon() ||
+					mw.util.getParamValue( &#39;action&#39; ) || !needsPhoto( $lead ) || mw.config.get( &#39;wgIsMainPage&#39; ) ) {
+				$( &#39;#ca-upload&#39; ).remove();
+			}
+		}
+
+		new LeadPhotoUploaderButton( {
+			funnel: funnel
+		} );
+	}
+
+	if ( isSupported ) {
+		$( initialize );
+	} else {
+			// FIXME: We want to enable it to these users however we must first deal with what to show
+			// to users who haven&#39;t uploaded anything to make the page useful.
+		$( function () {
+			$( &#39;#mw-mf-page-left li.icon-uploads&#39; ).remove();
+		} );
+	}
+
+	M.define( &#39;modules/uploads/_leadphoto&#39;, {
+		needsPhoto: needsPhoto
+	} );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

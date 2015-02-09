@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $, mw ) {
+
+	var user = M.require( &#39;user&#39; ),
+
+<span id='wikiGrokUser'>		/**
+</span>		 * The `wikiGrokUser` object encapsulates the WikiGrok A/B test specific
+		 * state of the user, e.g. whether or not they have seen WikiGrok while
+		 * browsing anonymously, whereas the `user` object encapsulates their
+		 * general state, e.g. their ID and name.
+		 *
+		 * @class wikiGrokUser
+		 * @singleton
+		 */
+		wikiGrokUser = $.extend( {
+
+<span id='wikiGrokUser-method-getToken'>			/**
+</span>			 * Gets the user&#39;s token from the &quot;-wikiGrokUserToken&quot; cookie. If the cookie
+			 * isn&#39;t set, then a token is generated and then stored in the cookie for 90
+			 * days, and then returned.
+			 * @method
+			 * @return {String}
+			 */
+			getToken: function () {
+				var cookieName = mw.config.get( &#39;wgCookiePrefix&#39; ) + &#39;-wikiGrokUserToken&#39;,
+					storedToken = $.cookie( cookieName ),
+					generatedToken;
+
+				if ( storedToken ) {
+					return storedToken;
+				}
+
+				generatedToken = mw.user.generateRandomSessionId();
+
+				$.cookie( cookieName, generatedToken, {
+					expires: 90, // (days)
+					path: &#39;/&#39;
+				} );
+
+				return generatedToken;
+			}
+		}, user );
+
+	M.define( &#39;wikiGrokUser&#39;, wikiGrokUser );
+
+} ( mw.mobileFrontend, jQuery, mw ) );
+</pre>
+</body>
+</html>

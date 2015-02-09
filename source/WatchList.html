@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var WatchList,
+		PageList = M.require( &#39;modules/PageList&#39; ),
+		InfiniteScroll = M.require( &#39;InfiniteScroll&#39; ),
+		WatchListApi = M.require( &#39;modules/watchlist/WatchListApi&#39; );
+
+<span id='WatchList'>	/**
+</span>	 * An extension of the PageList which preloads pages as all being watched.
+	 * @extends PageList
+	 * @class WatchList
+	 * @uses InfiniteScroll
+	 */
+	WatchList = PageList.extend( {
+		events: {
+			&#39;mousedown a.title&#39;: &#39;onTitleClick&#39;
+		},
+<span id='WatchList-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			var lastTitle;
+
+			// Set up infinite scroll helper and listen to events
+			this.infiniteScroll = new InfiniteScroll();
+			this.infiniteScroll.on( &#39;load&#39;, $.proxy( this, &#39;_loadPages&#39; ) );
+
+			if ( options.el ) {
+				lastTitle = this.getLastTitle( options.el );
+			}
+			// `api` is used in the parent...
+			this.watchlistApi = new WatchListApi( lastTitle );
+
+			PageList.prototype.initialize.apply( this, arguments );
+		},
+<span id='WatchList-method-preRender'>		/** @inheritdoc */
+</span>		preRender: function () {
+			this.infiniteScroll.disable();
+			this.infiniteScroll.setElement( this.$el );
+		},
+<span id='WatchList-method-getPages'>		/**
+</span>		 * Retrieve pages where all pages are watched.
+		 *
+		 * @method
+		 * @param {Array} ids a list of page ids
+		 * @return {jQuery.Deferred}
+		 */
+		getPages: function ( ids ) {
+			return this.api.load( ids, true );
+		},
+<span id='WatchList-method-postRender'>		/**
+</span>		 * Also sets a watch uploads funnel.
+		 * @inheritdoc
+		 */
+		postRender: function () {
+			PageList.prototype.postRender.apply( this, arguments );
+			this.infiniteScroll.enable();
+		},
+<span id='WatchList-method-onTitleClick'>		/**
+</span>		 * Save title clicks
+		 */
+		onTitleClick: function () {
+			// name funnel for watchlists to catch subsequent uploads
+			$.cookie( &#39;mwUploadsFunnel&#39;, &#39;watchlist&#39;, {
+				expires: new Date( new Date().getTime() + 60000 )
+			} );
+		},
+<span id='WatchList-method-_loadPages'>		/**
+</span>		 * Loads pages from the api and triggers render.
+		 * Infinite scroll is re-enabled in postRender.
+		 */
+		_loadPages: function () {
+			var self = this;
+			this.watchlistApi.load().done( function ( pages ) {
+				$.each( pages, function ( i, page ) {
+					self.appendPage( page );
+				} );
+				self.render();
+			} );
+		},
+
+<span id='WatchList-method-appendPage'>		/**
+</span>		 * Appends a list item
+		 * @param {Object} page
+		 */
+		appendPage: function ( page ) {
+			this.$el.append( this.templatePartials.item.render( page ) );
+		},
+
+<span id='WatchList-method-getLastTitle'>		/**
+</span>		 * Get the last title from the rendered HTML.
+		 * Used for initializing the API
+		 * @param {jQuery.Object} $el Dom element of the list
+		 */
+		getLastTitle: function ( $el ) {
+			return $el.find( &#39;li:last&#39; ).attr( &#39;title&#39; );
+		}
+
+	} );
+
+	M.define( &#39;modules/watchlist/WatchList&#39;, WatchList );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

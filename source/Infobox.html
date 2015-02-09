@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var Infobox,
+		md5fn = M.require( &#39;hex_md5&#39; ),
+		WikiDataApi = M.require( &#39;modules/wikigrok/WikiDataApi&#39; ),
+		View = M.require( &#39;View&#39; ),
+		user = M.require( &#39;user&#39; ),
+		icons = M.require( &#39;icons&#39; ),
+		months = [
+			&#39;january-date&#39;,
+			&#39;february-date&#39;,
+			&#39;march-date&#39;,
+			&#39;april-date&#39;,
+			&#39;may-date&#39;,
+			&#39;june-date&#39;,
+			&#39;july-date&#39;,
+			&#39;august-date&#39;,
+			&#39;september-date&#39;,
+			&#39;october-date&#39;,
+			&#39;november-date&#39;,
+			&#39;december-date&#39;
+		];
+
+<span id='Infobox'>	/**
+</span>	 * A Wikidata generated infobox.
+	 * Emits photo-loaded event when images in the infobox have loaded.
+	 * @class Infobox
+	 * @extends View
+	 */
+	Infobox = View.extend( {
+		template: mw.template.get( &#39;mobile.infobox&#39;, &#39;Infobox.hogan&#39; ),
+
+		className: &#39;wikidata-infobox&#39;,
+<span id='Infobox-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.spinner HTML of the spinner icon.
+		 * @cfg {String} defaults.description WikiData description.
+		 * Defaults to &#39;A Wikipedia page in need of a description.&#39;
+		 * @cfg {Array} defaults.rows Description of rows to show in Wikidata infobox
+		 * e.g. [
+		 * {
+		 *   id: &quot;P18&quot;,
+		 *   isEmpty: false,
+		 *   values: [
+		 *     {
+		 *       src: &quot;https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/&quot; +
+		 *            &quot;Anne_Dallas_Dudley_LOC.jpg/160px-Anne_Dallas_Dudley_LOC.jpg&quot;,
+		 *       url: &quot;/wiki/File:Anne_Dallas_Dudley_LOC.jpg&quot;
+		 *     }
+		 *   ]
+		 * },
+		 * {
+		 *   id: &quot;P569&quot;,
+		 *   isEmpty: false,
+		 *   label: &quot;Born&quot;
+		 * }
+		 * ]
+		 */
+		defaults: {
+			spinner: icons.spinner().toHtmlString(),
+			description: mw.config.get( &#39;wgMFDescription&#39; ) ||
+				&#39;A Wikipedia page in need of a description.&#39;,
+			rows: []
+		},
+		typeDefaults: mw.config.get( &#39;wgMFInfoboxConfig&#39; ),
+<span id='Infobox-property-events'>		/** @inheritdoc */
+</span>		events: {
+			&#39;click .more&#39;: &#39;onExpandInfobox&#39;
+		},
+<span id='Infobox-method-getImageUrl'>		/**
+</span>		 * Given a title work out the url to the thumbnail for that image
+		 * FIXME: This should not make its way into stable.
+		 * @method
+		 * @param {String} title of file page without File: prefix
+		 * @return {String} url corresponding to thumbnail (size 160px)
+		 */
+		getImageUrl: function ( title ) {
+			var md5, filename, source,
+				path = &#39;https://upload.wikimedia.org/wikipedia/commons/&#39;;
+
+			// uppercase first letter in file name
+			filename = title.charAt( 0 ).toUpperCase() + title.substr( 1 );
+			// replace spaces with underscores
+			filename = filename.replace( / /g, &#39;_&#39; );
+			md5 = md5fn( filename );
+			source = md5.charAt( 0 ) + &#39;/&#39; + md5.substr( 0, 2 ) + &#39;/&#39; + filename;
+			if ( filename.substr( filename.length - 3 ) !== &#39;svg&#39; ) {
+				return path + &#39;thumb/&#39; + source + &#39;/160px-&#39; + filename;
+			} else {
+				return path + source;
+			}
+		},
+<span id='Infobox-method-_getValues'>		/**
+</span>		 * Parses a list of claims
+		 *
+		 * @private
+		 * @method
+		 * @param {Object} claims as returned by WikiData#getClaims
+		 * @return {Array} List of values matching that claim
+		 */
+		_getValues: function ( claims ) {
+			var values = [],
+				self = this;
+
+			$.each( claims, function ( i, claim ) {
+				var snak = claim.mainsnak,
+					value = snak.datavalue;
+				if ( snak.snaktype === &#39;novalue&#39; ) {
+					values.push( {
+						value: &#39;None&#39;
+					} );
+				} else if ( snak.datatype === &#39;commonsMedia&#39; ) {
+					values.push( {
+						type: &#39;commonsMedia&#39;,
+						url: mw.util.getUrl( &#39;File:&#39; + value.value ),
+						src: self.getImageUrl( value.value )
+					} );
+				} else if ( value.type === &#39;string&#39; ) {
+					values.push( {
+						value: value.value
+					} );
+				} else if ( value.type === &#39;time&#39; ) {
+					values.push( {
+						value: self._getFormattedTime( value.value )
+					} );
+				} else if ( value.type === &#39;wikibase-entityid&#39; ) {
+					values.push( {
+						type: &#39;item&#39;,
+						id: &#39;Q&#39; + value.value[ &#39;numeric-id&#39; ],
+						isLink: true
+					} );
+				} else if ( value.type === &#39;globecoordinate&#39; ) {
+					values.push( {
+						value: value.value.latitude + &#39;, &#39; + value.value.longitude
+					} );
+				} else if ( value.type === &#39;quantity&#39; ) {
+					// FIXME: Deal with qualifiers
+					values.push( {
+						value: value.value.amount
+					} );
+				} else {
+					console.log( value.type + &#39; unknown&#39;, value );
+				}
+			} );
+			return values;
+		},
+<span id='Infobox-method-_getFormattedTime'>		/**
+</span>		 * Return a user friendly version of time.
+		 * @param {Object} time
+		 * Example:
+		 * {
+		 *     after: 0,
+		 *     before: 0,
+		 *     calendarmodel: &quot;http://www.wikidata.org/entity/Q1985727&quot;,
+		 *     precision: 9,
+		 *     time: &quot;-00000000550-01-01T00:00:00Z&quot;,
+		 *     timezone: 0
+		 * }
+		 * @returns {String} Formatted time
+		 * Example: &#39;550 BCE&#39;
+		 * @private
+		 * FIXME: timezone is assumed to be UTC. Explore using http://momentjs.com/timezone/
+		 */
+		_getFormattedTime: function ( time ) {
+			var formattedTime,
+				date = new Date( time.time.substr( 8 ) ),
+				year = date.getUTCFullYear().toString(),
+				isBCE = time.time.charAt( 0 ) === &#39;-&#39;,
+				eraMessage = &#39;mobile-frontend-time-precision-&#39; +
+					( isBCE ? &#39;BCE-&#39; : &#39;&#39; );
+			// Precision Values:
+			// 0 - billion years
+			// 1 - hundred million years
+			// 2...
+			// 6 - millennium
+			// 7 - century
+			// 8 - decade
+			// 9 - year
+			// 10 - month
+			// 11 - day
+			// 12 - hour
+			// 13 - minute
+			// 14 - second
+			switch ( time.precision ) {
+				case 0:
+					formattedTime = mw.msg( eraMessage + &#39;Gannum&#39;, year );
+					break;
+				case 1:
+				case 2:
+				case 3:
+				case 4:
+					formattedTime = mw.msg( eraMessage + &#39;Mannum&#39;, year );
+					break;
+				case 5:
+					formattedTime = mw.msg( eraMessage + &#39;annum&#39;, year );
+					break;
+				case 6:
+					formattedTime = mw.msg( eraMessage + &#39;millennium&#39;, year );
+					break;
+				case 7:
+					formattedTime = mw.msg( eraMessage + &#39;century&#39;, year );
+					break;
+				case 8:
+					formattedTime = mw.msg( eraMessage + &#39;10annum&#39;, year );
+					break;
+				default:
+					formattedTime = mw.msg( eraMessage + &#39;0annum&#39;, year );
+					break;
+			}
+			// month
+			if ( time.precision === 10 ) {
+				formattedTime = $.trim( mw.msg(
+					months[date.getUTCMonth()],
+					&#39;&#39;
+				) ) + &#39; &#39; + formattedTime;
+				// date
+			} else if ( time.precision &gt; 10 ) {
+				formattedTime = mw.msg(
+					months[ date.getUTCMonth() ],
+					date.getUTCDate().toString()
+				) + &#39; &#39; + formattedTime;
+			}
+			// ignore time
+			return formattedTime;
+		},
+<span id='Infobox-method-_mapLabels'>		/**
+</span>		 * Translates IDs in the current row value to human readable text
+		 *
+		 * @private
+		 * @method
+		 * @param {Array} rows with id and label
+		 * @return {Array} rows with human readable values
+		 */
+		_mapLabels: function ( rows ) {
+			var labelIds = [];
+
+			// collect all the label ids
+			$.each( rows, function ( i, row ) {
+				labelIds.push( row.id );
+				$.each( row.values, function ( i, value ) {
+					if ( value.id ) {
+						labelIds.push( value.id );
+					}
+				} );
+			} );
+
+			// work out what they all mean
+			return this.api.getExpandedItemsData( labelIds ).then( function ( labels ) {
+				// map the property id to the actual label.
+				$.each( rows, function ( i, row ) {
+					var meta = labels[ row.id ];
+					if ( meta ) {
+						row.label = meta.label;
+						row.type = meta.type;
+					} else {
+						row.label = &#39;No label.&#39;;
+					}
+
+					$.each( row.values, function ( j, value ) {
+						var item = labels[ value.id ];
+						if ( item ) {
+							value.value = item.label;
+							value.url = item.url;
+						}
+					} );
+				} );
+				return rows;
+			} );
+		},
+<span id='Infobox-method-getDefaultsFromClaims'>		/**
+</span>		 * Decides based on the type of item what infobox to render
+		 *
+		 * @private
+		 * @method
+		 * @param {Object} claims as returned by WikiData#getClaims
+		 * @return {Object} default option values
+		 */
+		getDefaultsFromClaims: function ( claims ) {
+			var defaults,
+				self = this,
+				fallback = this.typeDefaults[&#39;default&#39;] ||
+					{
+						rows: []
+					};
+
+			// Iterate through instances assuming priority order
+			$.each( claims.instanceTypes, function () {
+				// Pick the first match
+				if ( !defaults ) {
+					defaults = self.typeDefaults[this];
+				}
+			} );
+			return defaults || fallback;
+		},
+<span id='Infobox-method-getDeferred'>		/**
+</span>		 * Get the deferred object associated with the infobox
+		 *
+		 * @return {jQuery.Deferred}
+		 */
+		getDeferred: function () {
+			return this.$deferred;
+		},
+<span id='Infobox-method-initialize'>		/**
+</span>		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			this.$deferred = $.Deferred();
+			this.api = new WikiDataApi( {
+				itemId: options.itemId
+			} );
+
+			View.prototype.initialize.apply( this, arguments );
+			this.on( &#39;load&#39;, $.proxy( this, &#39;_loadRest&#39;, options ) );
+		},
+<span id='Infobox-method-getApi'>		/**
+</span>		 * Get an instance of the wikidata api
+		 *
+		 * @return {WikiDataApi}
+		 */
+		getApi: function () {
+			return this.api;
+		},
+<span id='Infobox-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function () {
+			if ( user.isAnon() ) {
+				this.$( &#39;.edit&#39; ).remove();
+			}
+			this.$( &#39;.spinner&#39; ).hide();
+		},
+<span id='Infobox-method-onExpandInfobox'>		/**
+</span>		 * Event handler that runs when the more button is clicked.
+		 * @param {jQuery.Event} ev
+		 */
+		onExpandInfobox: function ( ev ) {
+			$( ev.target ).remove();
+			this.emit( &#39;load&#39; );
+			this.postRender( this.options );
+		},
+<span id='Infobox-method-_loadRest'>		/**
+</span>		 * Decides based on the type of item what infobox to render
+		 *
+		 * @private
+		 * @method
+		 * @param {Object} options for overlay
+		 */
+		_loadRest: function ( options ) {
+			var self = this,
+				_super = View.prototype.render;
+
+			this.$( &#39;.spinner&#39; ).show();
+			this.api.getClaims().done( function ( claims ) {
+				var rows, isEmptyInfobox = true;
+				options = $.extend( options, self.getDefaultsFromClaims( claims ) );
+				if ( options.rows ) {
+					rows = options.rows;
+				} else {
+					// FIXME: Show toast?
+					throw &#39;Invalid configuration for infobox on this page.&#39;;
+				}
+				if ( claims.description ) {
+					options.description = claims.description;
+				}
+				$.each( rows, function ( i, row ) {
+					var claimRow = claims.entities[ row.id ];
+					if ( claims.entities &amp;&amp; claims.entities[ row.id ] ) {
+						row.values = self._getValues( claimRow );
+					} else {
+						row.values = [];
+					}
+					if ( row.values &amp;&amp; row.values.length ) {
+						isEmptyInfobox = false;
+					} else {
+						row.isEmpty = true;
+					}
+				} );
+
+				options.isEmptyInfobox = isEmptyInfobox;
+				self._mapLabels( rows ).done( function ( rows ) {
+					options.rows = rows;
+
+					self.options = options;
+					self.$deferred.resolve();
+					_super.call( self, options );
+					self.$( &#39;.hidden&#39; ).removeClass( &#39;hidden&#39; );
+					M.emit( &#39;photo-loaded&#39;, self.$el );
+				} );
+			} ).fail( function () {
+				// remove spinner
+				self.$el.remove();
+			} );
+		}
+	} );
+
+	M.define( &#39;modules/wikigrok/Infobox&#39;, Infobox );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

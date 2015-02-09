@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global EXIF */
+( function ( M, $ ) {
+	var popup = M.require( &#39;toast&#39; ),
+		user = M.require( &#39;user&#39; ),
+		router = M.require( &#39;router&#39; ),
+		Overlay = M.require( &#39;Overlay&#39; ),
+		EditorApi = M.require( &#39;modules/editor/EditorApi&#39; ),
+		PhotoApi = M.require( &#39;modules/uploads/PhotoApi&#39; ),
+		PhotoUploadProgress = M.require( &#39;modules/uploads/PhotoUploadProgress&#39; ),
+		SchemaMobileWebUploads = M.require( &#39;loggingSchemas/SchemaMobileWebUploads&#39; ),
+		ownershipMessage = mw.msg( &#39;mobile-frontend-photo-ownership&#39;, user.getName(), user ),
+		PhotoUploadOverlay;
+
+<span id='PhotoUploadOverlay'>	/**
+</span>	 * Overlay for photo upload
+	 * @class PhotoUploadOverlay
+	 * @uses PhotoApi
+	 * @extends Overlay
+	 */
+	PhotoUploadOverlay = Overlay.extend( {
+<span id='PhotoUploadOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {Page} defaults.page the page being uploaded to
+		 * @cfg {String} defaults.descriptionPlaceholder Placeholder text prompting user to add
+		 * a mandatory caption to an image.
+		 * @cfg {String} defaults.help A link that allows the user to open more information
+		 * about photo ownership.
+		 * @cfg {String} defaults.ownerStatement A statement saying the user created the image.
+		 * @cfg {String} defaults.heading A heading instructing the user to describe uploaded image.
+		 * @cfg {String} defaults.headerButtonsListClassName Class name of the wrapper of the
+		 * header buttons.
+		 * @cfg {Array} defaults.headerButtons Objects that will be used as defaults to create
+		 * header buttons. Defaults to the &#39;submit&#39; button.
+		 */
+		defaults: {
+			page: undefined,
+			descriptionPlaceholder: mw.msg( &#39;mobile-frontend-photo-caption-placeholder&#39; ),
+			help: mw.msg( &#39;mobile-frontend-photo-ownership-help&#39; ),
+			ownerStatement: ownershipMessage,
+			heading: mw.msg( &#39;mobile-frontend-image-heading-describe&#39; ),
+			headerButtonsListClassName: &#39;overlay-action&#39;,
+			headerButtons: [ {
+				className: &#39;submit&#39;,
+				msg: mw.msg( &#39;mobile-frontend-photo-submit&#39; )
+			} ]
+		},
+
+		className: &#39;overlay photo-overlay&#39;,
+
+		templatePartials: {
+			content: mw.template.get( &#39;mobile.uploads&#39;, &#39;PhotoUploadOverlay.hogan&#39; )
+		},
+
+<span id='PhotoUploadOverlay-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			var fileReader = new FileReader(),
+				self = this;
+
+			this.schema = new SchemaMobileWebUploads( {
+				funnel: options.funnel
+			} );
+			this.file = options.file;
+
+			if ( this.file ) {
+				fileReader.readAsDataURL( options.file );
+<span id='global-method-onload'>				/**
+</span>				 * onload event for FileReader
+				 * @ignore
+				 */
+				fileReader.onload = function () {
+					var dataUri = fileReader.result;
+					// add mimetype if not present (some browsers need it, e.g. Android browser)
+					dataUri = dataUri.replace( /^data:base64/, &#39;data:image/jpeg;base64&#39; );
+					self.schema.log( {
+						action: &#39;preview&#39;
+					} );
+					self.setImageUrl( dataUri );
+				};
+			}
+
+			if ( options.insertInPage ) {
+				this.api = new PhotoApi( {
+					page: options.page,
+					editorApi: new EditorApi( {
+						// FIXME: Use options.page instead
+						title: options.pageTitle
+					} )
+				} );
+			} else {
+				this.api = new PhotoApi( {
+					page: options.page
+				} );
+			}
+			this.api.on( &#39;uploadProgress&#39;, function ( value ) {
+				self.progressPopup.setValue( value );
+			} );
+
+			this.progressPopup = new PhotoUploadProgress().on( &#39;cancel&#39;, function () {
+				self.api.abort();
+				self.schema.log( {
+					action: &#39;cancel&#39;
+				} );
+			} ).on( &#39;submit&#39;, function () {
+				// handle resubmitting after abusefilter message
+				self._save();
+			} );
+
+			// If terms of use is enabled, include it in the licensing message
+			if ( $( &#39;#footer-places-terms-use&#39; ).length &gt; 0 ) {
+				options.license = mw.msg(
+					&#39;mobile-frontend-photo-licensing-with-terms&#39;,
+					$( &#39;#footer-places-terms-use&#39; ).html(),
+					mw.config.get( &#39;wgMFUploadLicenseLink&#39; )
+				);
+			} else {
+				options.license = mw.msg(
+					&#39;mobile-frontend-photo-licensing&#39;,
+					mw.config.get( &#39;wgMFUploadLicenseLink&#39; )
+				);
+			}
+
+			Overlay.prototype.initialize.apply( this, arguments );
+		},
+
+<span id='PhotoUploadOverlay-method-_save'>		/**
+</span>		 * Performs a file upload based on current state of PhotoUploadOverlay
+		 * When succeeds either reloads page or emits a global event _file-upload
+		 * If error occurs shows a toast
+		 * @uses PhotoApi
+		 * @private
+		 */
+		_save: function () {
+			var
+				self = this,
+				description = this.getDescription(),
+				saveOptions = {
+					file: this.file,
+					description: description
+				};
+
+			this.api.save( saveOptions ).done( function ( fileName, descriptionUrl ) {
+				self.progressPopup.hide( true );
+
+				self.schema.log( {
+					action: &#39;success&#39;
+				} );
+				if ( self.options.insertInPage ) {
+					popup.show( mw.msg( &#39;mobile-frontend-photo-upload-success-article&#39; ), &#39;toast&#39; );
+
+					// reload the page
+					window.location.reload();
+				} else {
+<span id='PhotoUploadOverlay-event-_file-upload'>					/**
+</span>					 * @event _file-upload
+					 * Emits global event _file-upload.
+					 * FIXME: handle Special:Uploads case - find more generic way of doing this
+					 */
+					M.emit( &#39;_file-upload&#39;, {
+						fileName: fileName,
+						description: description,
+						descriptionUrl: descriptionUrl,
+						url: self.imageUrl
+					} );
+				}
+			} ).fail( function ( err, statusMessage, httpErrorThrown ) {
+				var errMsg;
+
+				if ( err.type === &#39;abusefilter&#39; ) {
+					self.progressPopup.showAbuseFilter( err.details.type, err.details.message );
+				} else {
+					self.progressPopup.hide( true );
+					popup.show( statusMessage || mw.msg( &#39;mobile-frontend-photo-upload-error&#39; ), &#39;toast error&#39; );
+					// If there is error information in API response, report that in the log
+					if ( err.stage !== undefined || err.type !== undefined ) {
+						errMsg = err.stage + &#39;/&#39; + err.type;
+						if ( typeof err.details === &#39;string&#39; ) {
+							errMsg += &#39;/&#39; + err.details;
+						}
+						// Otherwise, record the stage as &#39;unknown&#39; and record the type as the
+						// status message (&quot;timeout&quot;, &quot;error&quot;, &quot;abort&quot;, etc. ) and include any
+						// HTTP error that was thrown.
+					} else {
+						errMsg = &#39;unknown&#39;;
+						if ( statusMessage ) {
+							errMsg += &#39;/&#39; + statusMessage;
+							if ( httpErrorThrown ) {
+								errMsg += &#39;/&#39; + httpErrorThrown;
+							}
+						}
+					}
+					self.schema.log( {
+						action: &#39;error&#39;,
+						errorText: errMsg
+					} );
+				}
+			} );
+		},
+
+<span id='PhotoUploadOverlay-method-_submit'>		/**
+</span>		 * Submits a photo for upload, reveals a progress bar and hides the overlay.
+		 * Invokes _save method.
+		 * @private
+		 */
+		_submit: function () {
+			this.hide( true );
+
+			this.progressPopup.show();
+
+			this._save();
+		},
+
+<span id='PhotoUploadOverlay-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			var $submitButton,
+				self = this;
+
+			Overlay.prototype.postRender.apply( this, arguments );
+
+			$submitButton = this.$( &#39;.submit&#39; )
+				.prop( &#39;disabled&#39;, true )
+				.on( &#39;click&#39;, function () {
+					self.schema.log( {
+						action: &#39;previewSubmit&#39;
+					} );
+					self._submit();
+				} );
+			this.$description = this.$( &#39;textarea&#39; )
+				.microAutosize()
+				// use input event too, Firefox doesn&#39;t fire keyup on many devices:
+				// https://bugzilla.mozilla.org/show_bug.cgi?id=737658
+				.on( &#39;keyup input&#39;, function () {
+					$submitButton.prop( &#39;disabled&#39;, self.$description.val() === &#39;&#39; );
+				} );
+
+			// make license links open in separate tabs
+			this.$( &#39;.license a&#39; ).attr( &#39;target&#39;, &#39;_blank&#39; );
+
+			// Deal with case where user refreshes the page
+			if ( !self.file ) {
+				router.navigate( &#39;#&#39; );
+			}
+		},
+
+<span id='PhotoUploadOverlay-method-show'>		/** @inheritdoc */
+</span>		show: function () {
+			var self = this;
+
+			Overlay.prototype.show.apply( this, arguments );
+
+			if ( this.file ) {
+				EXIF.getData( this.file, function () {
+					if ( $.isEmptyObject( this.exifdata ) ) {
+						if ( window.confirm( mw.msg( &#39;mobile-frontend-photo-upload-copyvio&#39; ) ) ) {
+							self.schema.log( {
+								action: &#39;copyvioOk&#39;
+							} );
+						} else {
+							self.schema.log( {
+								action: &#39;copyvioCancel&#39;
+							} );
+							self.hide( true );
+						}
+					}
+				} );
+			}
+		},
+
+<span id='PhotoUploadOverlay-method-hide'>		/** @inheritdoc */
+</span>		hide: function ( force ) {
+			var _super = Overlay.prototype.hide;
+			// In the case of a missing file force close
+			if ( force || !this.file ) {
+				return _super.apply( this, arguments );
+			} else if ( window.confirm( mw.msg( &#39;mobile-frontend-image-cancel-confirm&#39; ) ) ) {
+				this.emit( &#39;cancel&#39; );
+				this.schema.log( {
+					action: &#39;previewCancel&#39;
+				} );
+				return _super.apply( this, arguments );
+			} else {
+				return false;
+			}
+		},
+
+<span id='PhotoUploadOverlay-method-getDescription'>		/**
+</span>		 * Gets the user inputted description
+		 * @returns {String} of current value of description according to view
+		 */
+		getDescription: function () {
+			return this.$description.val();
+		},
+
+<span id='PhotoUploadOverlay-method-setImageUrl'>		/**
+</span>		 * Set the url of the image in the preview.
+		 * Throws toast if for some reason image cannot render e.g. bad file type.
+		 * @param {String} url usually a data uri
+		 */
+		setImageUrl: function ( url ) {
+			var self = this,
+				$preview = this.$( &#39;.preview&#39; );
+
+			this.imageUrl = url;
+			this.$( &#39;.spinner&#39; ).hide();
+			this.$( &#39;.help&#39; ).on( &#39;click&#39;, function () {
+				self.schema.log( {
+					action: &#39;whatDoesThisMean&#39;
+				} );
+			} );
+			$( &#39;&lt;img&gt;&#39; )
+				.attr( &#39;src&#39;, url )
+				.appendTo( $preview )
+				.on( &#39;error&#39;, function () {
+					// When using a bad filetype close the overlay
+					popup.show( mw.msg( &#39;mobile-frontend-photo-upload-error-file-type&#39; ), &#39;toast error&#39; );
+					self.hide( true );
+				} );
+		}
+	} );
+
+	M.define( &#39;modules/uploads/PhotoUploadOverlay&#39;, PhotoUploadOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

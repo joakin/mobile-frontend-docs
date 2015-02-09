@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var Icon = M.require( &#39;Icon&#39; );
+
+<span id='icons'>	/**
+</span>	 * A set of shared icons.
+	 *
+	 * Factory methods are used to keep separate features that use the same icons
+	 * from accidentally manipulating one another&#39;s DOM when calling methods like
+	 * `remove`.
+	 *
+	 * @class icons
+	 * @singleton
+	 * @uses Icon
+	 */
+	M.define( &#39;icons&#39;, {
+
+<span id='icons-method-spinner'>		/**
+</span>		 * Gets a spinner icon.
+		 *
+		 * The icon should be used to inform the user that the front-end is
+		 * communicating with the back-end.
+		 *
+		 * @param {Object} [options] See `Icon` for more details
+		 * @return {Icon}
+		 */
+		spinner: function ( options ) {
+			options = options || {};
+
+			return new Icon( $.extend( options, {
+				name: &#39;spinner&#39;,
+				label: mw.msg( &#39;mobile-frontend-loading-message&#39; ),
+				additionalClassNames: &#39;spinner loading&#39;
+			} ) );
+		}
+	} );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

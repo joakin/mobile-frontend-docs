@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var TableOfContents = M.require( &#39;modules/toc/TableOfContents&#39; ),
+		toggle = M.require( &#39;toggle&#39; );
+
+<span id='global-method-init'>	/**
+</span>	 * Create TableOfContents if the given Page has sections and is not the main page
+	 * and wgTOC config variable is enabled.
+	 * @method
+	 * @param {Page} page for which a TOC is generated
+	 * @ignore
+	 */
+	function init( page ) {
+		var toc,
+			sections = page.getSections(),
+			enableToc = mw.config.get( &#39;wgTOC&#39; );
+
+		if ( enableToc ||
+			// Fallback for old cached HTML, added 26 June, 2014
+			( enableToc === null &amp;&amp; sections.length &gt; 0 &amp;&amp; !page.isMainPage() ) )
+		{
+			toc = new TableOfContents( {
+				sections: sections
+			} );
+			if ( mw.config.get( &#39;wgMFPageSections&#39; ) ) {
+				toc.appendTo( page.getLeadSectionElement() );
+			} else {
+				// don&#39;t show toc at end of page, when no sections there
+				toc.insertAfter( &#39;#toc&#39; );
+				// remove the original parser toc
+				this.$( &#39;#toc&#39; ).remove();
+				// prevent to float text right of toc
+				this.$( &#39;.toc-mobile&#39; ).after( &#39;&lt;div style=&quot;clear:both;&quot;&gt;&lt;/div&gt;&#39; );
+			}
+			toggle.enable( toc.$el );
+		}
+	}
+
+	// add a ToC only for &quot;view&quot; action (user is reading a page)
+	if ( mw.config.get( &#39;wgAction&#39; ) === &#39;view&#39; ) {
+		init( M.getCurrentPage() );
+	}
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var WikiGrokDialog = M.require( &#39;modules/wikigrok/WikiGrokDialog&#39; ),
+		wikiGrokCampaigns = M.require( &#39;modules/wikigrok/wikiGrokCampaigns&#39; ),
+		WikiGrokDialogB;
+
+<span id='WikiGrokDialogB'>	/**
+</span>	 * @class WikiGrokDialogB
+	 * @extends WikiGrokDialog
+	 * THIS IS AN EXPERIMENTAL FEATURE THAT MAY BE MOVED TO A SEPARATE EXTENSION.
+	 * This creates the dialog at the bottom of the lead section that appears when a user
+	 * scrolls past the lead. It asks the user to confirm metadata information for use
+	 * in Wikidata (https://www.wikidata.org).
+	 */
+	WikiGrokDialogB = WikiGrokDialog.extend( {
+		version: &#39;b&#39;,
+		template: mw.template.get( &#39;mobile.wikigrok.dialog.b&#39;, &#39;Dialog.hogan&#39; ),
+
+<span id='WikiGrokDialogB-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function () {
+			var self = this;
+
+			WikiGrokDialog.prototype.initialize.apply( this, arguments );
+
+			// log page impression and widget impression when the widget is shown
+			this.once( &#39;show&#39;, function () {
+				self.logPageImpression();
+				self.initializeWidgetImpressionLogging();
+
+			} );
+		},
+<span id='WikiGrokDialogB-method-_renderSuggestions'>		/**
+</span>		 * Renders a set of buttons to the panel.
+		 * Fetches suggestions&#39; labels from the server.
+		 * Shows panel to user when there are suggestions.
+		 * @method
+		 * @private
+		 */
+		_renderSuggestions: function () {
+			var suggestions,
+				allSuggestions,
+				$next,
+				$none,
+				self = this;
+
+			allSuggestions = wikiGrokCampaigns.getAllSuggestions();
+			// randomly pick 4 suggestions
+			suggestions = self.chooseRandomItemsFromArray( allSuggestions, 4 );
+
+			// Now work out the labels if we have some suggestions
+			if ( suggestions.length ) {
+				$next = self.$( &#39;.footer .next&#39; );
+				$none = self.$( &#39;.footer .none&#39; );
+
+				// Hard-code the &quot;Next&quot; button width to match the &quot;None&quot; button width.
+				// That way, when the buttons are switched, the width stays the same.
+				// This depends on the assumption that the &quot;Next&quot; button text is
+				// always shorter than the &quot;None&quot; button text.
+				$next.css( &#39;width&#39;, $none.outerWidth() );
+
+				self.$( &#39;.tags&#39; ).show();
+				$.each( suggestions, function ( i, suggestion ) {
+					var $tag, tagHtml, templateData, propertyName;
+
+					// Replace some property names
+					// FIXME: These are not internationalizable and will probably have to
+					// die once WikiGrok is deployed outside of English Wikipedia
+					if ( suggestion.campaign.propertyName === &#39;instance of&#39; ) {
+						propertyName = &#39;type&#39;;
+					} else if ( suggestion.campaign.propertyName === &#39;original language of work&#39; ) {
+						propertyName = &#39;original language&#39;;
+					} else {
+						propertyName = suggestion.campaign.propertyName;
+					}
+
+					templateData = {
+						id: &#39;tag-&#39; + suggestion.id,
+						propName: suggestion.campaign.propertyName,
+						propId: suggestion.campaign.propertyId,
+						itemId: suggestion.id,
+						readable: suggestion.label,
+						campaignName: suggestion.campaign.name,
+						campaignText: propertyName,
+						tagText: suggestion.label
+					};
+
+					if ( suggestion.label ) {
+						tagHtml = mw.template.get( &#39;mobile.wikigrok.dialog.b&#39;, &#39;tagButton.hogan&#39; )
+							.render( templateData );
+
+						$tag = $( tagHtml )
+							.on( &#39;click&#39;, function () {
+								// Activate the tag
+								$( this ).toggleClass( &#39;mw-ui-progressive&#39; );
+								// If there are any tags active, switch submit button from
+								// &quot;None&quot; to &quot;Next&quot;.
+								if ( self.$( &#39;.tags .ui-tag-button.mw-ui-progressive&#39; ).length ) {
+									$none.hide();
+									$next.show();
+								} else {
+									$next.hide();
+									$none.show();
+								}
+							} ).appendTo( self.$( &#39;.tags&#39; ) );
+					}
+				} );
+
+				// only show the panel when we have created at least one button
+				if ( self.$( &#39;.ui-tag-button&#39; ).length ) {
+					self.$( &#39;.spinner&#39; ).hide();
+					self.show();
+				}
+			}
+		},
+<span id='WikiGrokDialogB-method-askWikidataQuestion'>		/**
+</span>		 * Show suggestions to the user.
+		 * Also record claims when the user hits the save button.
+		 * FIXME: Please refactor
+		 * @method
+		 * @param {Object} options needed to render
+		 */
+		askWikidataQuestion: function ( options ) {
+			var self = this;
+
+			self.$( &#39;.wg-notice&#39; ).hide();
+			self.$( &#39;.wg-buttons&#39; ).hide();
+			self.$( &#39;.spinner&#39; ).show();
+			self.$( &#39;.wg-content&#39; ).text( &#39;Select tags that correctly describe &#39; + options.title );
+			self.$( &#39;.footer&#39; ).show();
+
+			self._renderSuggestions( options.campaign );
+
+			this.$save = this.$( &#39;.save&#39; );
+			this.$save.on( &#39;click&#39;, function () {
+				var answers = [];
+				self.$( &#39;.tags .ui-tag-button&#39; ).each( function () {
+					var $this = $( this );
+					answers.push( {
+						correct: $this.is( &#39;.mw-ui-progressive&#39; ) ? true : null,
+						prop: $this.data( &#39;propname&#39; ),
+						propid: $this.data( &#39;propid&#39; ),
+						value: $this.data( &#39;readable&#39; ),
+						valueid: $this.data( &#39;itemid&#39; ),
+						campaign: $this.data( &#39;campaignname&#39; )
+					} );
+				} );
+
+				self.$( &#39;.tags&#39; ).hide();
+				self.$( &#39;.spinner&#39; ).show();
+				self.apiWikiGrokResponse.recordClaims( answers ).done( function () {
+					self.postRecordClaims( options, true );
+				} ).fail( function () {
+					self.handleError( &#39;no-response-cannot-record-user-input&#39; );
+				} );
+				self.log( &#39;widget-click-submit&#39; );
+			} );
+		},
+<span id='WikiGrokDialogB-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function ( options ) {
+			var self = this;
+
+			self.$( &#39;.tags, .footer, .spinner&#39; ).hide();
+
+			// show the welcome screen once
+			if ( !options.beginQuestions ) {
+				options.beginQuestions = true;
+				this.$( &#39;.wg-buttons .cancel&#39; ).on( &#39;click&#39;, function () {
+					self.hide();
+					self.log( &#39;widget-click-nothanks&#39; );
+				} );
+				this.$( &#39;.wg-buttons .proceed&#39; ).on( &#39;click&#39;, function () {
+					self.log( &#39;widget-click-accept&#39; );
+					// Proceed with asking the user a metadata question.
+					self.askWikidataQuestion( options );
+				} );
+				// Log more info clicks
+				this.$( &#39;.wg-notice-link&#39; ).on( &#39;click&#39;, function () {
+					self.log( &#39;widget-click-moreinfo&#39; );
+				} );
+
+				// hide wikigrok after an error has occurred
+				this.$( &#39;.pane.error .close&#39; ).on( &#39;click&#39;, function () {
+					self.hide();
+				} );
+
+				this.reveal( options );
+			}
+		},
+
+<span id='WikiGrokDialogB-method-reveal'>		/**
+</span>		 * @inheritdoc
+		 */
+		reveal: function ( options ) {
+			if ( options.campaign ) {
+				this.show();
+			}
+		}
+	} );
+
+	M.define( &#39;modules/wikigrok/WikiGrokDialogB&#39;, WikiGrokDialogB );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

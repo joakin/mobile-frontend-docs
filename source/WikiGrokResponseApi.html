@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// jscs:disable requireCamelCaseOrUpperCaseIdentifiers
+( function ( M ) {
+	var WikiGrokResponseApi,
+		context = M.require( &#39;context&#39; ),
+		Api = M.require( &#39;api&#39; ).Api;
+
+<span id='WikiGrokApi'>	/**
+</span>	 * Record claims to the WikiGrok API
+	 * @class WikiGrokApi
+	 * @extends Api
+	 */
+	WikiGrokResponseApi = Api.extend( {
+<span id='WikiGrokApi-method-initialize'>		/**
+</span>		 * Initialize with default values
+		 * @method
+		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			this.subjectId = options.itemId;
+			this.subject = options.subject;
+			this.userToken = options.userToken;
+			this.taskToken = options.taskToken;
+			this.taskType = &#39;version &#39; + options.version;
+			this.testing = false;
+			Api.prototype.initialize.apply( this, arguments );
+		},
+<span id='WikiGrokApi-method-recordClaims'>		/**
+</span>		 * Saves claims to the wikigrok API server
+		 * @method
+		 * @param {Array} claims A list of claims. Each claim must have correct, prop, propid, value and valueid set
+		 * @return {jQuery.Deferred} Object returned by ajax call
+		 */
+		recordClaims: function ( claims ) {
+			return this.postWithToken( &#39;edit&#39;, {
+				action: &#39;wikigrokresponse&#39;,
+				page_id: mw.config.get( &#39;wgArticleId&#39; ),
+				user_token: this.userToken,
+				task_token: this.taskToken,
+				task_type: this.taskType,
+				subject_id: this.subjectId,
+				subject: this.subject,
+				mobile_mode: context.getMode(),
+				testing: this.testing,
+				claims: JSON.stringify( claims )
+			} );
+		}
+	} );
+	M.define( &#39;modules/wikigrok/WikiGrokResponseApi&#39;, WikiGrokResponseApi );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

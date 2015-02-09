@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var api = M.require( &#39;api&#39; ),
+		util = M.require( &#39;util&#39; ),
+		query = $.extend( {}, util.query ),
+		LoadingOverlay = M.require( &#39;LoadingOverlay&#39; ),
+		ErrorDrawer = M.require( &#39;modules/wikiGrokRoulette/ErrorDrawer&#39; ),
+		nextPage,
+		wikiGrokRoulette;
+
+<span id='modules'>	/**
+</span>	 * Load and navigate to the next page
+	 * @class modules/wikiGrokRoulette/wikiGrokRoulette
+	 * @singleton
+	 * @uses LoadingOverlay
+	 * @uses modules/wikiGrokRoulette/ErrorDrawer
+	 */
+	wikiGrokRoulette = {
+<span id='modules-method-getNextPage'>		/**
+</span>		 * Get the next page and cache it
+		 * Valid response from the server is transformed to the following form:
+		 * { url: &#39;page url&#39;, title: &#39;page title&#39;}
+		 * @return {jQuery.Deferred}
+		 */
+		getNextPage: function () {
+			var result;
+
+			if ( nextPage ) {
+				result = $.Deferred().resolve( nextPage );
+			} else {
+				result = api.ajax( {
+					action: &#39;query&#39;,
+					list: &#39;wikigrokrandom&#39;,
+					categories: this.categories
+				} ).then( function ( response ) {
+					if ( response.query &amp;&amp;
+						response.query.wikigrokrandom &amp;&amp;
+						response.query.wikigrokrandom.length &gt; 0
+					) {
+						// Remove title from query because it&#39;s already used in constructing the URL.
+						// Leave everything else unchanged for testing purposes.
+						delete query.title;
+						nextPage = {
+							url: mw.util.getUrl(
+								response.query.wikigrokrandom[0].title,
+								query
+							) + &#39;#wikigrokversion=c&#39;,
+							title: response.query.wikigrokrandom[0].title
+						};
+						return nextPage;
+					}
+				} );
+			}
+
+			return result;
+		},
+
+<span id='modules-method-navigateToNextPage'>		/**
+</span>		 * Navigate to the next page
+		 */
+		navigateToNextPage: function () {
+			var loadingOverlay = new LoadingOverlay();
+
+			loadingOverlay.show();
+
+			this.getNextPage().done( function ( page ) {
+				if ( page &amp;&amp; page.url &amp;&amp; page.title ) {
+					// navigated to the url
+					window.location.href = page.url;
+					// FIXME: expose wikigrok/init.js so that we can just show wikigrok without reloading in such cases
+					// force reload if page titles match
+					if ( M.getCurrentPage().title === page.title ) {
+						window.location.reload();
+					}
+				} else {
+					loadingOverlay.hide( false );
+					new ErrorDrawer();
+				}
+			} ).fail( function () {
+				loadingOverlay.hide( false );
+				new ErrorDrawer();
+			} ).always( function () {
+				// FIXME: this module should not care about mainMenu. move this to init.js
+				var mainMenu = M.require( &#39;skin&#39; ).getMainMenu();
+				mainMenu.closeNavigationDrawers();
+			} );
+		}
+	};
+
+	M.define( &#39;modules/wikiGrokRoulette/wikiGrokRoulette&#39;, wikiGrokRoulette );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

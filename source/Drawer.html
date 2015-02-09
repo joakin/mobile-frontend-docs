@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var Panel = M.require( &#39;Panel&#39; ),
+		Drawer;
+
+<span id='Drawer'>	/**
+</span>	 * A {@link View} that pops up from the bottom of the screen.
+	 * @class Drawer
+	 * @extends Panel
+	 */
+	Drawer = Panel.extend( {
+		className: &#39;drawer position-fixed&#39;,
+		appendToElement: &#39;#mw-mf-viewport&#39;,
+		closeOnScroll: true,
+
+<span id='Drawer-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			var self = this;
+			Panel.prototype.postRender.apply( this, arguments );
+			this.on( &#39;show&#39;, function () {
+				setTimeout( function () {
+					$( &#39;body&#39; ).one( &#39;click.drawer&#39;, $.proxy( self, &#39;hide&#39; ) );
+					if ( self.closeOnScroll ) {
+						$( window ).one( &#39;scroll.drawer&#39;, $.proxy( self, &#39;hide&#39; ) );
+					}
+					// can&#39;t use &#39;body&#39; because the drawer will be closed when
+					// tapping on it and clicks will be prevented
+					$( &#39;#mw-mf-page-center&#39; ).one( &#39;click.drawer&#39;, $.proxy( self, &#39;hide&#39; ) );
+				}, self.minHideDelay );
+			} );
+
+			this.on( &#39;hide&#39;, function () {
+				// .one() registers one callback for scroll and click independently
+				// if one fired, get rid of the other one
+				$( window ).off( &#39;.drawer&#39; );
+				$( &#39;#mw-mf-page-center&#39; ).off( &#39;.drawer&#39; );
+			} );
+
+			// Allow the drawer itself to be clickable (e.g. for copying and pasting references /
+			// clicking links in reference)
+			this.$el.on( &#39;click&#39;, function ( ev ) {
+				ev.stopPropagation();
+			} );
+		}
+	} );
+
+	M.define( &#39;Drawer&#39;, Drawer );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

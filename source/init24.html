@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	M.require( &#39;context&#39; ).assertMode( [ &#39;alpha&#39; ] );
+	var browser = M.require( &#39;browser&#39; ),
+		mainMenu = M.require( &#39;skin&#39; ).mainMenu,
+		$wikiGrokMenuItem =  $( &#39;#mw-mf-page-left&#39; ).find( &#39;.wikigrok-roulette&#39; ),
+		wikiGrokRoulette = M.require( &#39;modules/wikiGrokRoulette/wikiGrokRoulette&#39; ),
+		InfoOverlay = M.require( &#39;modules/wikiGrokRoulette/InfoOverlay&#39; );
+
+	// Handle Random WikiGrok menu item
+	if ( $wikiGrokMenuItem.length ) {
+		$wikiGrokMenuItem.on( &#39;click&#39;, function ( ev ) {
+			ev.preventDefault();
+			// Show the tutorial once
+			if ( browser.supportsLocalStorage ) {
+				if ( localStorage.getItem( &#39;hasWikiGrokRouletteInfoBeenShown&#39; ) === &#39;1&#39; ) {
+					wikiGrokRoulette.navigateToNextPage();
+				} else {
+					mainMenu.closeNavigationDrawers();
+					new InfoOverlay().show();
+				}
+			} else {
+				wikiGrokRoulette.navigateToNextPage();
+			}
+		} );
+	}
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

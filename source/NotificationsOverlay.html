@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var Overlay = M.require( &#39;Overlay&#39; ),
+		api = M.require( &#39;api&#39; ),
+		NotificationsOverlay;
+
+<span id='NotificationsOverlay'>	/**
+</span>	 * Overlay for notifications
+	 * @class NotificationsOverlay
+	 * @extend Overlay
+	 * @uses Api
+	 */
+	NotificationsOverlay = Overlay.extend( {
+		className: &#39;overlay notifications-overlay navigation-drawer&#39;,
+		templatePartials: {
+			content: mw.template.get( &#39;mobile.notifications.overlay&#39;, &#39;content.hogan&#39; ),
+			footer: mw.template.get( &#39;mobile.overlays&#39;, &#39;OverlayFooterLink.hogan&#39; )
+		},
+<span id='NotificationsOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.heading Heading text.
+		 * @cfg {String} defaults.link Link to &#39;Special:Notifications&#39;.
+		 * @cfg {String} defaults.linkMsg Label of the link element that is associated with
+		 * defaults.link.
+		 * @cfg {String} defaults.linkClass Class attribute value of the link element that is
+		 * associated with defaults.link.
+		 */
+		defaults: {
+			heading: mw.msg( &#39;notifications&#39; ),
+			link: mw.util.getUrl( &#39;Special:Notifications&#39; ),
+			linkMsg: mw.msg( &#39;echo-overlay-link&#39; ),
+			linkClass: &#39;notifications-archive-link&#39;
+		},
+<span id='NotificationsOverlay-method-onError'>		/**
+</span>		 * Fall back to notifications archive page.
+		 * @method
+		 */
+		onError: function () {
+			window.location.href = this.$badge.attr( &#39;href&#39; );
+		},
+<span id='NotificationsOverlay-method-markAsRead'>		/**
+</span>		 * Mark as read. Change the UI only, no API request.
+		 * @method
+		 */
+		markAsRead: function () {
+			this.$badge.find( &#39;.notification-count&#39; ).remove();
+		},
+<span id='NotificationsOverlay-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			var self = this;
+			Overlay.prototype.initialize.apply( this, options );
+			// Anchor tag that corresponds to a notifications badge
+			this.$badge = options.$badge;
+			// On error use the url as a fallback
+			if ( options.error ) {
+				this.onError();
+			} else {
+				// FIXME: Move to NotificationApi class
+				api.get( {
+					action: &#39;query&#39;,
+					meta: &#39;notifications&#39;,
+					notformat: &#39;flyout&#39;,
+					notprop: &#39;index|list|count&#39;,
+					uselang: &#39;user&#39;
+				} ).done( function ( result ) {
+					var notifications;
+					if ( result.query &amp;&amp; result.query.notifications ) {
+						notifications = $.map( result.query.notifications.list, function ( a ) {
+							return {
+								message: a[&#39;*&#39;],
+								timestamp: a.timestamp.mw
+							};
+						} ).sort( function ( a, b ) {
+							return a.timestamp &lt; b.timestamp ? 1 : -1;
+						} );
+						if ( notifications.length ) {
+							options.notifications = notifications;
+						} else {
+							options.errorMessage = mw.msg( &#39;echo-none&#39; );
+						}
+
+						self.render( options );
+						self.$( &#39;.mw-echo-notification&#39; ).each( function () {
+							var $notification = $( this ),
+								$primaryLink = $notification.find( &#39;.mw-echo-notification-primary-link&#39; );
+							// If there is a primary link, make the entire notification clickable.
+							if ( $primaryLink.length ) {
+								$notification.addClass( &#39;mw-echo-linked-notification&#39; );
+								$notification.on( &#39;click&#39;, function () {
+									window.location.href = $primaryLink.attr( &#39;href&#39; );
+								} );
+							}
+							// Set up event logging for each notification
+							mw.echo.setupNotificationLogging( $notification, &#39;mobile-overlay&#39;, true );
+						} );
+						// Only fire &#39;mark as read&#39; API call when unread notification
+						// count is not zero.  Question: why does this fire an API call
+						// for &#39;mark all as read&#39;, the overlay may not load all unread
+						// notifications
+						if ( result.query.notifications.rawcount !== 0 ) {
+							self.markAllAsRead();
+						}
+					} else {
+						self.onError();
+					}
+				} ).fail( function () {
+					self.onError();
+				} );
+			}
+		},
+<span id='NotificationsOverlay-method-markAllAsRead'>		/**
+</span>		 * Mark notifications as read in the server. Make an API request.
+		 * @method
+		 */
+		markAllAsRead: function () {
+			// FIXME: Move to NotificationApi class
+			api.postWithToken( &#39;edit&#39;, {
+				action: &#39;echomarkread&#39;,
+				all: true
+			} );
+		},
+<span id='NotificationsOverlay-method-preRender'>		/** @inheritdoc */
+</span>		preRender: function ( options ) {
+			options.heading = &#39;&lt;strong&gt;&#39; + mw.msg( &#39;notifications&#39; ) + &#39;&lt;/strong&gt;&#39;;
+		},
+<span id='NotificationsOverlay-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function ( options ) {
+			Overlay.prototype.postRender.apply( this, options );
+
+			if ( options.notifications || options.errorMessage ) {
+				this.$( &#39;.loading&#39; ).remove();
+				// Reset the badge
+				this.markAsRead();
+			}
+		}
+	} );
+
+	M.define( &#39;modules/notifications/NotificationsOverlay&#39;, NotificationsOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

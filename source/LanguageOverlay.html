@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var Overlay = M.require( &#39;Overlay&#39; ),
+		LanguageOverlay;
+
+<span id='LanguageOverlay'>	/**
+</span>	 * Overlay displaying list of languages for a page
+	 * @class LanguageOverlay
+	 * @extends Overlay
+	 */
+	LanguageOverlay = Overlay.extend( {
+<span id='LanguageOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.heading The title for the list of languages for a page.
+		 * @cfg {String} defaults.placeholder Placeholder text for the search input.
+		 */
+		defaults: {
+			heading: mw.msg( &#39;mobile-frontend-language-heading&#39; ),
+			placeholder: mw.msg( &#39;mobile-frontend-language-site-choose&#39; )
+		},
+<span id='LanguageOverlay-property-className'>		/**
+</span>		 * @inheritdoc
+		 */
+		className: &#39;language-overlay overlay&#39;,
+<span id='LanguageOverlay-property-templatePartials'>		/**
+</span>		 * @inheritdoc
+		 */
+		templatePartials: {
+			content: mw.template.get( &#39;mobile.languages&#39;, &#39;LanguageOverlay.hogan&#39; )
+		},
+<span id='LanguageOverlay-property-events'>		/**
+</span>		 * @inheritdoc
+		 */
+		events: {
+			&#39;click ul a&#39;: &#39;onLinkClick&#39;,
+			&#39;input .search&#39;: &#39;onSearchInput&#39;
+		},
+
+<span id='LanguageOverlay-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			if ( options.languages &amp;&amp; options.languages.length ) {
+				options.header = mw.msg( &#39;mobile-frontend-language-header&#39;, options.languages.length );
+			}
+			if ( options.variants &amp;&amp; options.variants.length ) {
+				options.variantHeader = mw.msg( &#39;mobile-frontend-language-variant-header&#39; );
+			}
+			M.emit( &#39;language-overlay-initialize&#39;, options );
+			Overlay.prototype.initialize.apply( this, arguments );
+		},
+
+<span id='LanguageOverlay-method-filterLists'>		/**
+</span>		 * Filter the language list to only show languages that match the current search term.
+		 * @param {String} val of search term.
+		 */
+		filterLists: function ( val ) {
+			var $items = this.$( &#39;.site-link-list li&#39; ),
+				$subheaders = this.$( &#39;h3&#39; );
+
+			if ( val ) {
+				$subheaders.hide();
+				$items.each( function () {
+					var $item = $( this );
+					if ( $item.find( &#39;span&#39; ).text().toLowerCase().indexOf( val ) &gt; -1 ) {
+						$item.show();
+					} else {
+						$item.hide();
+					}
+				} );
+			} else {
+				$subheaders.show();
+				$items.show();
+			}
+		},
+
+<span id='LanguageOverlay-method-onLinkClick'>		/**
+</span>		 * Language link click handler
+		 * @param {jQuery.Event} ev Event object.
+		 */
+		onLinkClick: function ( ev ) {
+			M.emit( &#39;language-select&#39;, $( ev.currentTarget ).attr( &#39;lang&#39; ) );
+		},
+
+<span id='LanguageOverlay-method-onSearchInput'>		/**
+</span>		 * Search input handler
+		 * @param {jQuery.Event} ev Event object.
+		 */
+		onSearchInput: function ( ev ) {
+			this.filterLists( $( ev.target ).val().toLowerCase() );
+		}
+	} );
+
+	M.define( &#39;modules/languages/LanguageOverlay&#39;, LanguageOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var
+		View = M.require( &#39;View&#39; ),
+		AbuseFilterOverlay = M.require( &#39;modules/editor/AbuseFilterOverlay&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		AbuseFilterPanel;
+
+<span id='AbuseFilterPanel'>	/**
+</span>	 * Panel that shows an error message related to the abusefilter extension.
+	 * @class AbuseFilterPanel
+	 * @extends View
+	 * @uses AbuseFilterOverlay
+	 * FIXME: should extend Panel not View. Or the name should be changed to something meaningful.
+	 */
+	AbuseFilterPanel = View.extend( {
+<span id='AbuseFilterPanel-cfg-defaults'>		/**
+</span>		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.readMoreMsg A caption for the button allowing the user to read
+		 * more about the problems with their edit.
+		 */
+		defaults: {
+			readMoreMsg: mw.msg( &#39;mobile-frontend-editor-abusefilter-read-more&#39; )
+		},
+		template: mw.template.get( &#39;mobile.abusefilter&#39;, &#39;Panel.hogan&#39; ),
+		className: &#39;panel hidden&#39;,
+
+<span id='AbuseFilterPanel-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function () {
+			View.prototype.initialize.apply( this, arguments );
+			this.isDisallowed = false;
+		},
+
+<span id='AbuseFilterPanel-method-show'>		/**
+</span>		 * Show the panel. Create a route to show AbuseFilterOverlay with message.
+		 * @method
+		 * @param {String} type The type of alert, e.g. &#39;warning&#39; or &#39;disallow&#39;
+		 * @param {String} message Message to show in the AbuseFilter overlay
+		 */
+		show: function ( type, message ) {
+			var msg;
+
+			// OverlayManager will replace previous instance of the route if present
+			overlayManager.add( /^\/abusefilter$/, function () {
+				return new AbuseFilterOverlay( {
+					message: message
+				} );
+			} );
+
+			if ( type === &#39;warning&#39; ) {
+				msg = mw.msg( &#39;mobile-frontend-editor-abusefilter-warning&#39; );
+			} else if ( type === &#39;disallow&#39; ) {
+				msg = mw.msg( &#39;mobile-frontend-editor-abusefilter-disallow&#39; );
+				this.isDisallowed = true;
+			}
+
+			this.$( &#39;.message p&#39; ).text( msg );
+			this.$el.removeClass( &#39;hidden&#39; );
+		},
+
+<span id='AbuseFilterPanel-method-hide'>		/**
+</span>		 * Hide the panel.
+		 * @method
+		 */
+		hide: function () {
+			this.$el.addClass( &#39;hidden&#39; );
+		}
+	} );
+
+	M.define( &#39;modules/editor/AbuseFilterPanel&#39;, AbuseFilterPanel );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

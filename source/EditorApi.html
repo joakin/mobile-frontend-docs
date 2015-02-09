@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var EditorApi,
+		Api = M.require( &#39;api&#39; ).Api;
+
+<span id='EditorApi'>	/**
+</span>	 * API that helps save and retrieve page content
+	 * @class EditorApi
+	 * @extends Api
+	 */
+	EditorApi = Api.extend( {
+<span id='EditorApi-method-initialize'>		/**
+</span>		 * @inheritdoc
+		 * @param {Object} options
+		 * @param {String} options.title the title to edit
+		 * @param {Number} options.sectionId the id of the section to operate edits on.
+		 * @param {Number} [options.oldId] revision to operate on. If absent defaults to latest.
+		 * @param {Boolean} [options.isNewPage] whether the page being created is new
+		 */
+		initialize: function ( options ) {
+			Api.prototype.initialize.apply( this, arguments );
+			this.title = options.title;
+			this.sectionId = options.sectionId;
+			this.oldId = options.oldId;
+			// return an empty section for new pages
+			this.content = options.isNewPage ? &#39;&#39; : undefined;
+			this.hasChanged = false;
+		},
+
+<span id='EditorApi-method-getContent'>		/**
+</span>		 * Get the content of a page.
+		 * @method
+		 * @returns {jQuery.Deferred}
+		 */
+		getContent: function () {
+			var options,
+				self = this,
+				result = $.Deferred();
+
+			if ( this.content !== undefined ) {
+				result.resolve( this.content );
+			} else {
+				options = {
+					action: &#39;query&#39;,
+					prop: &#39;revisions&#39;,
+					rvprop: [ &#39;content&#39;, &#39;timestamp&#39; ],
+					titles: this.title
+				};
+				// Load text of old revision if desired
+				if ( this.oldId ) {
+					options.rvstartid = this.oldId;
+				}
+				// See Bug 50136 - passing rvsection will fail with non wikitext
+				if ( $.isNumeric( this.sectionId ) ) {
+					options.rvsection = this.sectionId;
+				}
+				this.get( options ).done( function ( resp ) {
+					var revision;
+
+					if ( resp.error ) {
+						result.reject( resp.error.code );
+						return;
+					}
+
+					// FIXME: MediaWiki API, seriously?
+					revision = $.map( resp.query.pages, function ( page ) {
+						return page;
+					} )[0].revisions[0];
+
+					self.content = revision[&#39;*&#39;];
+					self.timestamp = revision.timestamp;
+
+					result.resolve( self.content );
+				} );
+			}
+
+			return result;
+		},
+
+<span id='EditorApi-method-setContent'>		/**
+</span>		 * Mark content as modified and set changes to be submitted when #save
+		 * is invoked.
+		 * @method
+		 * @param {String} content New section content.
+		 */
+		setContent: function ( content ) {
+			this.content = content;
+			this.hasChanged = true;
+		},
+
+<span id='EditorApi-method-setPrependText'>		/**
+</span>		 * Mark content as modified and set text that should be prepended to given
+		 * section when #save is invoked.
+		 * @method
+		 * @param {String} text Text to be prepended.
+		 */
+		setPrependText: function ( text ) {
+			this.prependtext = text;
+			this.hasChanged = true;
+		},
+
+<span id='EditorApi-method-save'>		/**
+</span>		 * Save the new content of the section, previously set using #setContent.
+		 * @method
+		 * @param {Object} options
+		 *      [options.summary] String Optional summary for the edit.
+		 *     [options.captchaId] String If CAPTCHA was requested, ID of the
+		 * captcha.
+		 *     [options.captchaWord] String If CAPTCHA was requested, term
+		 * displayed in the CAPTCHA.
+		 * @return {jQuery.Deferred} On failure callback is passed an object with
+		 * `type` and `details` properties. `type` is a string describing the type
+		 * of error, `details` can be any object (usually error message).
+		 */
+		save: function ( options ) {
+			var self = this,
+				result = $.Deferred();
+
+			options = options || {};
+
+			if ( !this.hasChanged ) {
+				throw new Error( &#39;No changes to save&#39; );
+			}
+
+<span id='global-method-saveContent'>			/**
+</span>			 * Save content. Make an API request.
+			 * @ignore
+			 */
+			function saveContent() {
+				var apiOptions = {
+					action: &#39;edit&#39;,
+					title: self.title,
+					summary: options.summary,
+					captchaid: options.captchaId,
+					captchaword: options.captchaWord,
+					basetimestamp: self.timestamp,
+					starttimestamp: self.timestamp
+				};
+
+				if ( self.content !== undefined ) {
+					apiOptions.text = self.content;
+				} else if ( self.prependtext ) {
+					apiOptions.prependtext = self.prependtext;
+				}
+
+				if ( $.isNumeric( self.sectionId ) ) {
+					apiOptions.section = self.sectionId;
+				}
+
+				self.postWithToken( &#39;edit&#39;, apiOptions ).done( function ( data ) {
+					var code, warning;
+
+					if ( data &amp;&amp; data.edit &amp;&amp; data.edit.result === &#39;Success&#39; ) {
+						self.hasChanged = false;
+						result.resolve();
+					} else if ( data &amp;&amp; data.error ) {
+						// Edit API error
+						result.reject( {
+							type: &#39;error&#39;,
+							details: data.error.code
+						} );
+					} else if ( data &amp;&amp; data.edit &amp;&amp; data.edit.captcha ) {
+						// CAPTCHAs
+						result.reject( {
+							type: &#39;captcha&#39;,
+							details: data.edit.captcha
+						} );
+					} else if ( data &amp;&amp; data.edit &amp;&amp; data.edit.code ) {
+						code = data.edit.code;
+						warning = data.edit.warning;
+
+						// FIXME: AbuseFilter should have more consistent API responses
+						if ( /^abusefilter-warning/.test( code ) ) {
+							// AbuseFilter warning
+							result.reject( {
+								type: &#39;abusefilter&#39;,
+								details: {
+									type: &#39;warning&#39;,
+									message: warning
+								}
+							} );
+						} else if ( /^abusefilter-disallow/.test( code ) ) {
+							// AbuseFilter disallow
+							result.reject( {
+								type: &#39;abusefilter&#39;,
+								details: {
+									type: &#39;disallow&#39;,
+									message: warning
+								}
+							} );
+						} else if ( /^abusefilter/.test( code ) ) {
+							// AbuseFilter other
+							result.reject( {
+								type: &#39;abusefilter&#39;,
+								details: {
+									type: &#39;other&#39;,
+									message: warning
+								}
+							} );
+						} else {
+							// other errors
+							result.reject( {
+								type: &#39;error&#39;,
+								details: code
+							} );
+						}
+					} else {
+						result.reject( {
+							type: &#39;error&#39;,
+							details: &#39;unknown&#39;
+						} );
+					}
+				} ).fail( $.proxy( result, &#39;reject&#39;, {
+					type: &#39;error&#39;,
+					details: &#39;http&#39;
+				} ) );
+			}
+
+			saveContent();
+			return result;
+		},
+
+<span id='EditorApi-method-getPreview'>		/**
+</span>		 * Get page preview from the API
+		 * @method
+		 * @param {Object} options API query parameters
+		 * @returns {jQuery.Deferred}
+		 */
+		getPreview: function ( options ) {
+			var result = $.Deferred(),
+				sectionLine = &#39;&#39;,
+				self = this;
+
+			$.extend( options, {
+				action: &#39;parse&#39;,
+				// Enable section preview mode to avoid errors (bug 49218)
+				sectionpreview: true,
+				// needed for pre-save transform to work (bug 53692)
+				pst: true,
+				// Output mobile HTML (bug 54243)
+				mobileformat: true,
+				title: this.title,
+				prop: [ &#39;text&#39;, &#39;sections&#39; ]
+			} );
+
+			this.post( options ).done( function ( resp ) {
+				if ( resp &amp;&amp; resp.parse &amp;&amp; resp.parse.text ) {
+					// section 0 haven&#39;t a section name so skip
+					if ( self.sectionId !== 0 &amp;&amp;
+						resp.parse.sections !== undefined &amp;&amp;
+						resp.parse.sections[0] !== undefined &amp;&amp;
+						resp.parse.sections[0].line !== undefined
+					) {
+						sectionLine = resp.parse.sections[0].line;
+					}
+					result.resolve( resp.parse.text[&#39;*&#39;], sectionLine );
+				} else {
+					result.reject();
+				}
+			} ).fail( $.proxy( result, &#39;reject&#39; ) );
+
+			return result;
+		}
+	} );
+
+	M.define( &#39;modules/editor/EditorApi&#39;, EditorApi );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

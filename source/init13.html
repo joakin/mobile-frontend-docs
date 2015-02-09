@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	var loader = M.require( &#39;loader&#39; ),
+		router = M.require( &#39;router&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; );
+<span id='global-method-init'>	/**
+</span>	 * Add routes to images and handle clicks
+	 * @method
+	 * @ignore
+	 * @param {jQuery.Object} $el Object within which to look for images
+	 */
+	function init( $el ) {
+		if ( !mw.config.get( &#39;wgImagesDisabled&#39; ) ) {
+			$el.find( &#39;a.image, a.thumbimage&#39; ).each( function () {
+				var $a = $( this ),
+					match = $a.attr( &#39;href&#39; ).match( /[^\/]+$/ );
+
+				if ( match ) {
+					$a.off();
+					$a.on( &#39;click&#39;, function ( ev ) {
+						ev.preventDefault();
+						router.navigate( &#39;#/media/&#39; + match[0] );
+					} );
+				}
+			} );
+		}
+	}
+
+<span id='global-method-loadImageOverlay'>	/**
+</span>	 * Load image overlay
+	 * @method
+	 * @ignore
+	 * @uses ImageOverlay
+	 * @param {String} title Url of image
+	 * @returns {jQuery.Deferred}
+	 */
+	function loadImageOverlay( title ) {
+		var result = $.Deferred();
+		loader.loadModule( &#39;mobile.mediaViewer&#39; ).done( function () {
+			var caption = $( &#39;a[href*=&quot;&#39; + title + &#39;&quot;]&#39; ).siblings( &#39;.thumbcaption&#39; ).text(),
+				ImageOverlay = M.require( &#39;modules/mediaViewer/ImageOverlay&#39; );
+
+			result.resolve(
+				new ImageOverlay( {
+					title: decodeURIComponent( title ),
+					caption: caption
+				} )
+			);
+		} );
+		return result;
+	}
+	overlayManager.add( /^\/media\/(.+)$/, loadImageOverlay );
+
+	init( $( &#39;#content_wrapper&#39; ) );
+	// for Special:Uploads
+	M.on( &#39;photo-loaded&#39;, init );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

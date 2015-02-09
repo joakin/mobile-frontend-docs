@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var Drawer = M.require( &#39;Drawer&#39; ),
+		ErrorDrawer;
+
+<span id='ErrorDrawer'>	/**
+</span>	 * Drawer that shows a generic error message.
+	 * @class
+	 * @extends Drawer
+	 */
+	ErrorDrawer = Drawer.extend( {
+<span id='ErrorDrawer-property-template'>		/**
+</span>		 * @inheritdoc
+		 */
+		template: mw.template.get( &#39;mobile.wikigrok.roulette&#39;, &#39;Error.hogan&#39; ),
+<span id='ErrorDrawer-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function () {
+			var self = this;
+			Drawer.prototype.postRender.apply( this, arguments );
+			this.$el.find( &#39;.close&#39; ).on( &#39;click&#39;, function () {
+				self.detach();
+			} );
+			self.show();
+		}
+	} );
+
+	M.define( &#39;modules/wikiGrokRoulette/ErrorDrawer&#39;, ErrorDrawer );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

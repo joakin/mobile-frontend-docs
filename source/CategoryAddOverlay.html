@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var CategoryAddOverlay,
+		Overlay = M.require( &#39;Overlay&#39; ),
+		CategoryApi = M.require( &#39;modules/categories/CategoryApi&#39; ),
+		CategoryLookupInputWidget = M.require( &#39;modules/categories/CategoryLookupInputWidget&#39; ),
+		icons = M.require( &#39;icons&#39; ),
+		toast = M.require( &#39;toast&#39; );
+
+<span id='CategoryAddOverlay'>	/**
+</span>	 * Displays the list of categories for a page
+	 * @class CategoryAddOverlay
+	 * @extends Overlay
+	 * @uses CategoryApi
+	 */
+	CategoryAddOverlay = Overlay.extend( {
+<span id='CategoryAddOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.waitMsg Text that displays while a page edit is being saved.
+		 * @cfg {String} defaults.waitIcon HTML of the icon that displays while a page edit
+		 * is being saved.
+		 */
+		defaults: {
+			headerButtonsListClassName: &#39;overlay-action&#39;,
+			waitMsg: mw.msg( &#39;mobile-frontend-categories-add-wait&#39; ),
+			waitIcon: icons.spinner( {
+				tagName: &#39;span&#39;
+			} ).toHtmlString()
+		},
+<span id='CategoryAddOverlay-property-events'>		/**
+</span>		 * @inheritdoc
+		 */
+		events: {
+			&#39;click .save&#39;: &#39;onSaveClick&#39;,
+			&#39;click .suggestion&#39;: &#39;onCategoryClick&#39;
+		},
+<span id='CategoryAddOverlay-property-className'>		/**
+</span>		 * @inheritdoc
+		 */
+		className: &#39;category-overlay overlay&#39;,
+<span id='CategoryAddOverlay-property-template'>		/**
+</span>		 * @inheritdoc
+		 */
+		template: mw.template.get( &#39;mobile.categories&#39;, &#39;CategoryAddOverlay.hogan&#39; ),
+<span id='CategoryAddOverlay-property-templatePartials'>		/**
+</span>		 * @inheritdoc
+		 */
+		templatePartials: {
+			header: mw.template.get( &#39;mobile.categories&#39;, &#39;CategoryAddOverlayHeader.hogan&#39; ),
+			saveHeader: mw.template.get( &#39;mobile.editor.common&#39;, &#39;saveHeader.hogan&#39; )
+		},
+
+<span id='CategoryAddOverlay-method-initialize'>		/**
+</span>		 * @inheritdoc
+		 */
+		initialize: function ( options ) {
+			options.heading = mw.msg( &#39;mobile-frontend-categories-add-heading&#39;, options.title );
+			Overlay.prototype.initialize.apply( this, arguments );
+		},
+
+<span id='CategoryAddOverlay-method-postRender'>		/**
+</span>		 * @inheritdoc
+		 */
+		postRender: function ( options ) {
+			var input;
+
+			Overlay.prototype.postRender.apply( this, arguments );
+
+			this.$suggestions = this.$( &#39;.category-suggestions&#39; );
+			this.$saveButton = this.$( &#39;.save&#39; );
+			this.wgCategories = options.categories;
+			this.title = options.title;
+
+			this.api = new CategoryApi();
+			input = new CategoryLookupInputWidget( {
+				api: this.api,
+				suggestions: this.$suggestions,
+				categories: this.wgCategories,
+				saveButton: this.$saveButton
+			} );
+			this.$( &#39;.category-add-input&#39; ).append(
+				input.$element
+			);
+		},
+
+<span id='CategoryAddOverlay-method-onCategoryClick'>		/**
+</span>		 * Handle a click on an added category
+		 * @method
+		 * @param {jQuery.Event} ev
+		 */
+		onCategoryClick: function ( ev ) {
+			$( ev.target ).detach();
+			if ( this.$( &#39;.suggestion.mw-ui-progressive&#39; ).length &gt; 0 ) {
+				this.$saveButton.prop( &#39;disabled&#39;, false );
+			} else {
+				this.$saveButton.prop( &#39;disabled&#39;, true );
+			}
+		},
+
+<span id='CategoryAddOverlay-method-onSaveClick'>		/**
+</span>		 * Handle the click on the save button. Builds a string of new categories
+		 * and add it to the article.
+		 */
+		onSaveClick: function () {
+			var newCategories = &#39;&#39;,
+				self = this;
+
+			// show the loading spinner and disable the safe button
+			// FIXME: Don&#39;t call a private method that is outside the class.
+			this._showHidden( &#39;.saving-header&#39; );
+
+			// add wikitext to add to the page
+			$.each( $( &#39;.mw-ui-progressive&#39; ), function () {
+				var data = $( this ).data( &#39;title&#39; );
+
+				if ( data ) {
+					// add the new categories in wikitext markup
+					newCategories += &#39;[[&#39; + data + &#39;]] &#39;;
+				}
+			} );
+
+			// if there are no categories added, don&#39;t do anything (the user shouldn&#39;t see the save button)
+			if ( newCategories.length === 0 ) {
+				toast.show( mw.msg( &#39;mobile-frontend-categories-nodata&#39; ), &#39;toast error&#39; );
+			} else {
+				// save the new categories
+				this.api.save( this.title, newCategories ).done( function () {
+					M.emit( &#39;category-added&#39; );
+					window.location.hash = &#39;#/categories&#39;;
+				} ).fail( function () {
+					// FIXME: Don&#39;t call a private method that is outside the class.
+					self._showHidden( &#39;.initial-header&#39; );
+					self.$safeButton.prop( &#39;disabled&#39;, false );
+					// FIXME: Should be a better error message
+					toast.show( mw.msg( &#39;mobile-frontend-categories-nodata&#39; ), &#39;toast error&#39; );
+				} );
+			}
+		}
+	} );
+
+	M.define( &#39;categories/CategoryAddOverlay&#39;, CategoryAddOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

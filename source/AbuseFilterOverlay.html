@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var AbuseFilterOverlay,
+		Overlay = M.require( &#39;Overlay&#39; );
+
+<span id='AbuseFilterOverlay'>	/**
+</span>	 * Overlay that shows a message about abuse. This overlay is rendered when the error code from the API
+	 * is related to the abusefilter extension.
+	 * @class AbuseFilterOverlay
+	 * @extends Overlay
+	 */
+	AbuseFilterOverlay = Overlay.extend( {
+<span id='AbuseFilterOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.confirmMessage Friendly confirmation message expressing
+		 * understanding.
+		 */
+		defaults: {
+			confirmMessage: mw.msg( &#39;mobile-frontend-photo-ownership-confirm&#39; )
+		},
+		templatePartials: {
+			content: mw.template.get( &#39;mobile.abusefilter&#39;, &#39;Overlay.hogan&#39; )
+		},
+		className: &#39;overlay abusefilter-overlay&#39;,
+
+<span id='AbuseFilterOverlay-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function () {
+			Overlay.prototype.postRender.apply( this, arguments );
+			// make links open in separate tabs
+			this.$( &#39;a&#39; ).attr( &#39;target&#39;, &#39;_blank&#39; );
+		}
+	} );
+
+	M.define( &#39;modules/editor/AbuseFilterOverlay&#39;, AbuseFilterOverlay );
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

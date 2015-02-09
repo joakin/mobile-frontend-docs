@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var loader = M.require( &#39;loader&#39; ),
+		pageApi = M.require( &#39;pageApi&#39; ),
+		router = M.require( &#39;router&#39; ),
+		overlayManager = M.require( &#39;overlayManager&#39; ),
+		MobileWebClickTracking = M.require( &#39;loggingSchemas/SchemaMobileWebClickTracking&#39; ),
+		uiSchema = new MobileWebClickTracking( {}, &#39;MobileWebUIClickTracking&#39; );
+
+	overlayManager.add( /^\/languages$/, function () {
+		var result = $.Deferred();
+
+		loader.loadModule( &#39;mobile.languages&#39;, true ).done( function ( loadingOverlay ) {
+			var LanguageOverlay = M.require( &#39;modules/languages/LanguageOverlay&#39; );
+
+			pageApi.getPageLanguages( mw.config.get( &#39;wgPageName&#39; ) ).done( function ( data ) {
+				loadingOverlay.hide();
+				result.resolve( new LanguageOverlay( {
+					languages: data.languages,
+					variants: data.variants
+				} ) );
+			} );
+		} );
+		return result;
+	} );
+
+<span id='global-method-initButton'>	/**
+</span>	 * Hijack the Special:Languages link and replace it with a trigger to a LanguageOverlay
+	 * that displays the same data
+	 * @ignore
+	 */
+	function initButton() {
+		$( &#39;#page-secondary-actions .languageSelector&#39; ).on( &#39;click&#39;, function ( ev ) {
+			ev.preventDefault();
+			router.navigate( &#39;/languages&#39; );
+			uiSchema.log( {
+				name: &#39;languages&#39;
+			} );
+		} );
+	}
+
+	$( initButton );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

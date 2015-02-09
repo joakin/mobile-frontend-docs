@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+	M.require( &#39;context&#39; ).assertMode( [ &#39;beta&#39;, &#39;alpha&#39; ] );
+	var
+		Overlay = M.require( &#39;Overlay&#39; ),
+		api = M.require( &#39;api&#39; ),
+		pageApi = M.require( &#39;pageApi&#39; ),
+		toast = M.require( &#39;toast&#39; ),
+		TalkSectionAddOverlay;
+
+<span id='TalkSectionAddOverlay'>	/**
+</span>	 * Overlay for adding a talk section
+	 * @class TalkSectionAddOverlay
+	 * @extends Overlay
+	 * @uses Api
+	 * @uses Toast
+	 */
+	TalkSectionAddOverlay = Overlay.extend( {
+<span id='TalkSectionAddOverlay-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.cancelMsg Caption for cancel button on edit form.
+		 * @cfg {String} defaults.topicTitlePlaceHolder Placeholder text to prompt user to add
+		 * a talk page topic subject.
+		 * @cfg {String} defaults.topicContentPlaceHolder Placeholder text to prompt user to add
+		 * content to talk page content.
+		 * @cfg {String} defaults.editingMsg Label for button which submits a new talk page topic.
+		 */
+		defaults: $.extend( {}, Overlay.prototype.defaults, {
+			cancelMsg: mw.msg( &#39;mobile-frontend-editor-cancel&#39; ),
+			topicTitlePlaceHolder: mw.msg( &#39;mobile-frontend-talk-add-overlay-subject-placeholder&#39; ),
+			topicContentPlaceHolder: mw.msg( &#39;mobile-frontend-talk-add-overlay-content-placeholder&#39; ),
+			editingMsg: mw.msg( &#39;mobile-frontend-talk-add-overlay-submit&#39; )
+		} ),
+		templatePartials: {
+			header: mw.template.get( &#39;mobile.talk.overlays&#39;, &#39;SectionAddOverlay/header.hogan&#39; ),
+			content: mw.template.get( &#39;mobile.talk.overlays&#39;, &#39;SectionAddOverlay/content.hogan&#39; )
+		},
+<span id='TalkSectionAddOverlay-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			// If terms of use is enabled, include it in the licensing message
+			// FIXME cache this selector, it&#39;s used more than once.
+			if ( $( &#39;#footer-places-terms-use&#39; ).length &gt; 0 ) {
+				options.licenseMsg = mw.msg(
+					&#39;mobile-frontend-editor-licensing-with-terms&#39;,
+					$( &#39;#footer-places-terms-use&#39; ).html(),
+					mw.config.get( &#39;wgMFLicenseLink&#39; )
+				);
+			} else {
+				options.licenseMsg = mw.msg(
+					&#39;mobile-frontend-editor-licensing&#39;,
+					mw.config.get( &#39;wgMFLicenseLink&#39; )
+				);
+			}
+			Overlay.prototype.initialize.apply( this, arguments );
+			this.title = options.title;
+			// Variable to indicate, if the overlay will be closed by the save function or by the user. If this is false and there is content in the input fields,
+			// the user will be asked, if he want to abandon his changes before we close the Overlay, otherwise the Overlay will be closed without any question.
+			this._saveHit = false;
+		},
+<span id='TalkSectionAddOverlay-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function ( options ) {
+			var self = this;
+			Overlay.prototype.postRender.call( this, options );
+			this.$confirm = this.$( &#39;button.confirm-save&#39; );
+			// FIXME: All .on() actions should be moved to use the events map
+			this.$subject = this.$( &#39;input&#39; );
+			this.$ta = this.$( &#39;textarea&#39; );
+			this.$( &#39;input, textarea&#39; ).on( &#39;input change&#39;, function () {
+				clearTimeout( self.timer );
+				self.timer = setTimeout( function () {
+					self._onInput();
+				}, 250 );
+			} );
+			this.$confirm.on( &#39;click&#39;, function () {
+				if ( !$( this ).prop( &#39;disabled&#39; ) ) {
+					self.save().done( function ( status ) {
+						if ( status === &#39;ok&#39; ) {
+							// Check if the user was previously on the talk overlay
+							if ( options.title !== mw.config.get( &#39;wgPageName&#39; ) ) {
+								pageApi.invalidatePage( self.title );
+								toast.show( mw.msg( &#39;mobile-frontend-talk-topic-feedback&#39; ), &#39;toast&#39; );
+								M.emit( &#39;talk-discussion-added&#39; );
+								self.hide();
+							} else {
+								M.emit( &#39;talk-added-wo-overlay&#39; );
+							}
+						}
+					} ).fail( function ( error ) {
+						var editMsg = &#39;mobile-frontend-talk-topic-error&#39;;
+
+						self.$confirm.prop( &#39;disabled&#39;, false );
+						switch ( error.details ) {
+							case &#39;protectedpage&#39;:
+								editMsg = &#39;mobile-frontend-talk-topic-error-protected&#39;;
+								break;
+							case &#39;noedit&#39;:
+							case &#39;blocked&#39;:
+								editMsg = &#39;mobile-frontend-talk-topic-error-permission&#39;;
+								break;
+							case &#39;spamdetected&#39;:
+								editMsg = &#39;mobile-frontend-talk-topic-error-spam&#39;;
+								break;
+							case &#39;badtoken&#39;:
+								editMsg = &#39;mobile-frontend-talk-topic-error-badtoken&#39;;
+								break;
+							default:
+								editMsg = &#39;mobile-frontend-talk-topic-error&#39;;
+								break;
+						}
+
+						toast.show( mw.msg( editMsg ), &#39;toast error&#39; );
+					} );
+				}
+			} );
+		},
+<span id='TalkSectionAddOverlay-method-hide'>		/** @inheritdoc */
+</span>		hide: function () {
+			var empty,
+				confirmMessage = mw.msg( &#39;mobile-frontend-editor-cancel-confirm&#39; );
+
+			empty = ( !this.$( &#39;.summary&#39; ).val() &amp;&amp; !this.$( &#39;.wikitext-editor&#39; ).val() );
+			if ( this._saveHit || empty || window.confirm( confirmMessage ) ) {
+				return Overlay.prototype.hide.apply( this, arguments );
+			} else {
+				return false;
+			}
+		},
+<span id='TalkSectionAddOverlay-method-_onInput'>		/**
+</span>		 * Handles an input into a textarea and enables or disables the submit button
+		 * @method
+		 * @private
+		 */
+		_onInput: function () {
+			if ( !this.$ta.val() || !this.$subject.val() ) {
+				this.$confirm.prop( &#39;disabled&#39;, true );
+			} else {
+				this.$confirm.prop( &#39;disabled&#39;, false );
+			}
+		},
+<span id='TalkSectionAddOverlay-method-save'>		/**
+</span>		 * Save new talk section
+		 * @method
+		 * @return {jQuery.Deferred} Object that either will be resolved with ok parameter
+		 * or rejected with type error.
+		 */
+		save: function () {
+			var heading = this.$subject.val(),
+				self = this,
+				text = this.$ta.val(),
+				result = $.Deferred();
+			this.$ta.removeClass( &#39;error&#39; );
+			this.$subject.removeClass( &#39;error&#39; );
+
+			// propagate, that we save an edit and want to close the Overlay without any interruption (user questions e.g.)
+			this._saveHit = true;
+
+			this.$confirm.prop( &#39;disabled&#39;, true );
+			this.$( &#39;.content&#39; ).empty().addClass( &#39;loading&#39; );
+			this.$( &#39;.buttonBar&#39; ).hide();
+			// FIXME: while saving: a spinner would be nice
+			api.postWithToken( &#39;edit&#39;, {
+				action: &#39;edit&#39;,
+				section: &#39;new&#39;,
+				sectiontitle: heading,
+				title: self.title,
+				summary: mw.msg( &#39;mobile-frontend-talk-edit-summary&#39;, heading ),
+				text: text + &#39; ~~~~&#39;
+			} ).done( function () {
+				result.resolve( &#39;ok&#39; );
+			} ).fail( function ( msg ) {
+				result.reject( {
+					type: &#39;error&#39;,
+					details: msg
+				} );
+			} );
+
+			return result;
+		}
+	} );
+
+	M.define( &#39;modules/talk/TalkSectionAddOverlay&#39;, TalkSectionAddOverlay );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

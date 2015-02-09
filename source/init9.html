@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var module = ( function () {
+		var context = M.require( &#39;context&#39; ),
+			Icon = M.require( &#39;Icon&#39; ),
+			overlayManager = M.require( &#39;overlayManager&#39; ),
+			inBeta = context.isBetaGroupMember(),
+			CleanupOverlay = M.require( &#39;modules/issues/CleanupOverlay&#39; ),
+			inAlpha = context.isAlphaGroupMember();
+
+<span id='global-method-extractMessage'>		/**
+</span>		 * Extract a summary message from a cleanup template generated element that is
+		 * friendly for mobile display.
+		 * @param {Object} $box element to extract the message from
+		 * @ignore
+		 * @return {String} html of message.
+		 */
+		function extractMessage( $box ) {
+			var selector = &#39;.mbox-text, .ambox-text&#39;,
+				$container = $( &#39;&lt;div&gt;&#39; );
+
+			$box.find( selector ).each( function () {
+				var contents,
+					$this = $( this );
+				// Clean up talk page boxes
+				$this.find( &#39;table, .noprint&#39; ).remove();
+				contents = $this.html();
+
+				if ( contents ) {
+					$( &#39;&lt;p&gt;&#39; ).html( contents ).appendTo( $container );
+				}
+			} );
+			return $container.html();
+		}
+
+<span id='global-method-createLinkElement'>		/**
+</span>		 * Create a link element that opens the issues overlay.
+		 *
+		 * @ignore
+		 *
+		 * @param {String} labelText The text value of the element
+		 * @return {jQuery}
+		 */
+		function createLinkElement( labelText ) {
+			if ( inAlpha ) {
+				return $( &#39;&lt;a class=&quot;cleanup mw-mf-cleanup&quot;&gt;&lt;/a&gt;&#39; )
+					.text( labelText );
+			}
+
+			return new Icon( {
+					tagName: &#39;a&#39;,
+					name: &#39;cleanup&#39;,
+					hasText: true,
+					label: labelText,
+					additionalClassNames: &#39;mw-mf-cleanup&#39;
+				} ).$el;
+		}
+
+<span id='global-method-createBanner'>		/**
+</span>		 * Render a banner in a containing element.
+		 * @param {jQuery.Object} $container to render the page issues banner inside.
+		 * @param {String} labelText what the label of the page issues banner should say
+		 * @param {String} headingText the heading of the overlay that is created when the page issues banner is clicked
+		 * @ignore
+		 */
+		function createBanner( $container, labelText, headingText ) {
+			var selector = &#39;table.ambox, table.tmbox, table.cmbox&#39;,
+				$metadata = $container.find( selector ),
+				issues = [],
+				$link;
+
+			// clean it up a little
+			$metadata.find( &#39;.NavFrame&#39; ).remove();
+
+			$metadata.each( function () {
+				var issue, content,
+					$this = $( this );
+
+				if ( $this.find( selector ).length === 0 ) {
+					// FIXME: [templates] might be inconsistent
+					content = inBeta ? extractMessage( $this ) :
+						$this.find( &#39;.mbox-text, .ambox-text&#39; ).html();
+
+					issue = {
+						// .ambox- is used e.g. on eswiki
+						text: content
+					};
+					if ( content ) {
+						issues.push( issue );
+					}
+				}
+			} );
+
+			$link = createLinkElement( labelText );
+			$link.attr( &#39;href&#39;, &#39;#/issues&#39; );
+
+			overlayManager.add( /^\/issues$/, function () {
+				return new CleanupOverlay( {
+					issues: issues,
+					headingText: headingText
+				} );
+			} );
+
+			if ( inAlpha &amp;&amp; $metadata.length ) {
+				$( &#39;.pre-content&#39; ).append( $link );
+			} else {
+				$link.insertBefore( $metadata.eq( 0 ) );
+			}
+
+			$metadata.remove();
+		}
+
+<span id='global-method-initPageIssues'>		/**
+</span>		 * Scan an element for any known cleanup templates and replace them with a button
+		 * that opens them in a mobile friendly overlay.
+		 * @ignore
+		 */
+		function initPageIssues() {
+			var ns = mw.config.get( &#39;wgNamespaceNumber&#39; ),
+				$container = ns === 14 ? $( &#39;#content&#39; ) : M.getCurrentPage().getLeadSectionElement(),
+				labelMsgKey = &#39;mobile-frontend-meta-data-issues&#39;;
+
+			if ( inAlpha ) {
+				labelMsgKey += &#39;-alpha&#39;;
+			}
+
+			if ( ns === 0 ) {
+				createBanner( $container, mw.msg( labelMsgKey ),
+					mw.msg( &#39;mobile-frontend-meta-data-issues-header&#39; ) );
+			// Create a banner for talk pages (namespace 1) in beta mode to make them more readable.
+			} else if ( ns === 1 ) {
+				createBanner( $container, mw.msg( &#39;mobile-frontend-meta-data-issues-talk&#39; ),
+					mw.msg( &#39;mobile-frontend-meta-data-issues-header-talk&#39; ) );
+			} else if ( ns === 14 &amp;&amp; inBeta ) {
+				createBanner( $container, mw.msg( &#39;mobile-frontend-meta-data-issues-categories&#39; ),
+					mw.msg( &#39;mobile-frontend-meta-data-issues-header-talk&#39; ) );
+			}
+		}
+
+		// Setup the issues banner on the page
+		initPageIssues();
+		// Show it in edit preview.
+		M.on( &#39;edit-preview&#39;, function ( overlay ) {
+			initPageIssues( overlay.$el );
+		} );
+
+		return {
+			createBanner: createBanner,
+			_extractMessage: extractMessage
+		};
+	}() );
+
+	M.define( &#39;cleanuptemplates&#39;, module );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

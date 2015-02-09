@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var ReferencesDrawer = M.require( &#39;modules/references/ReferencesDrawer&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		ReferencesDrawerBeta;
+
+<span id='ReferencesDrawerBeta'>	/**
+</span>	 * Drawer for references (beta)
+	 * @inheritdoc
+	 * @class ReferencesDrawerBeta
+	 * @extends ReferencesDrawer
+	 */
+	ReferencesDrawerBeta = ReferencesDrawer.extend( {
+<span id='ReferencesDrawerBeta-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.cancelButton HTML of the button that closes the drawer.
+		 * @cfg {String} defaults.citation HTML of the citation icon.
+		 */
+		defaults: {
+			cancelButton: new Icon( {
+				name: &#39;cancel-light&#39;,
+				additionalClassNames: &#39;cancel&#39;,
+				label: mw.msg( &#39;mobile-frontend-overlay-close&#39; )
+			} ).toHtmlString(),
+			citation: new Icon( {
+				name: &#39;citation&#39;,
+				additionalClassNames: &#39;text icon-16px&#39;,
+				hasText: true,
+				label: mw.msg( &#39;mobile-frontend-references-citation&#39; )
+			} ).toHtmlString()
+		},
+		template: mw.template.get( &#39;mobile.references.beta&#39;, &#39;DrawerBeta.hogan&#39; )
+	} );
+
+	M.define( &#39;modules/references/ReferencesDrawerBeta&#39;, ReferencesDrawerBeta );
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

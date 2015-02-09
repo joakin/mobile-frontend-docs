@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var WikiDataApi,
+		ForeignApi = M.require( &#39;modules/ForeignApi&#39; ),
+		config = mw.config.get( &#39;wgWikiBasePropertyConfig&#39; ),
+		endpoint = mw.config.get( &#39;wgMFWikiDataEndpoint&#39; );
+
+<span id='WikiDataApi'>	/**
+</span>	 * Gets claims and labels from the WikiData API
+	 * @class WikiDataApi
+	 * @extends ForeignApi
+	 */
+	WikiDataApi = ForeignApi.extend( {
+		propertyIdInstanceOf: config.instanceOf,
+		apiUrl: endpoint,
+		language: mw.config.get( &#39;wgUserLanguage&#39; ),
+<span id='WikiDataApi-method-initialize'>		/** @inheritdoc */
+</span>		initialize: function ( options ) {
+			this.subjectId = options.itemId;
+			ForeignApi.prototype.initialize.apply( this, arguments );
+		},
+<span id='WikiDataApi-method-getSiteLinks'>		/**
+</span>		 * Get sitelinks for the item from api filtered to the current language.
+		 * @method
+		 * @return {jQuery.Deferred}
+		 */
+		getSiteLinks: function () {
+			var id = this.subjectId,
+				lang = this.language;
+
+			return this.ajax( {
+				ids: id,
+				action: &#39;wbgetentities&#39;,
+				props: &#39;sitelinks/urls&#39;,
+				languages: lang
+			} ).then( function ( data ) {
+				var myLanguageProjects = [];
+				// filter sitelinks to only show ones from my project
+				$.each( data.entities[id].sitelinks, function () {
+					var site = this;
+					// FIXME: hacky. Assumes all projects begin with &#39;w&#39; or followed by _
+					if ( site.site.indexOf( lang + &#39;w&#39; ) === 0 || site.site.indexOf( lang + &#39;_&#39; ) === 0 ) {
+						myLanguageProjects.push( site );
+					}
+				} );
+				return myLanguageProjects;
+			} );
+		},
+<span id='WikiDataApi-method-getClaims'>		/**
+</span>		 * Get claims via the API
+		 * @method
+		 * @return {jQuery.Deferred}
+		 */
+		getClaims: function () {
+			var self = this,
+				instanceOfId = this.propertyIdInstanceOf,
+				id = this.subjectId;
+
+			return this.ajax( {
+				action: &#39;wbgetentities&#39;,
+				ids: id,
+				languages: this.language,
+				props: [ &#39;descriptions&#39;, &#39;claims&#39; ],
+				format: &#39;json&#39;
+			} ).then( function ( data ) {
+				var description, instanceClaims, entityClaims,
+					claims = {};
+				if (
+					data.entities !== undefined &amp;&amp;
+					data.entities[id].claims !== undefined
+				) {
+					entityClaims = data.entities[id].claims;
+
+					// See if the page has any &#39;instance of&#39; claims.
+					if ( data.entities[id].claims[instanceOfId] !== undefined ) {
+						instanceClaims = entityClaims[instanceOfId];
+
+						// Examine claims closely
+						claims.instanceTypes = $.map( instanceClaims, function ( claim ) {
+							return claim.mainsnak.datavalue.value[ &#39;numeric-id&#39; ];
+						} );
+						if ( claims.instanceTypes.length &gt; 0 ) {
+							claims.instanceOf = claims.instanceTypes[ 0 ];
+						}
+					}
+					claims.entities = entityClaims;
+				}
+				description = data.entities[ id ];
+
+				if ( description &amp;&amp; description.descriptions !== undefined ) {
+					if ( description.descriptions[ self.language ] ) {
+						claims.description = description.descriptions[ self.language ].value;
+					}
+				}
+				return claims;
+			} ).fail( function () {
+				// FIXME: logError does not exist
+				// self.logError( &#39;no-impression-cannot-fetch-claims&#39; );
+			} );
+		},
+<span id='WikiDataApi-method-getLabels'>		/**
+</span>		 * Get labels for an item from Wikidata
+		 * See: https://www.wikidata.org/wiki/Help:Label
+		 * @method
+		 * @param {Array} itemIds for items in Wikidata
+		 * @return {jQuery.Deferred} Object returned by ajax call
+		 */
+		getLabels: function ( itemIds ) {
+			var lang = this.language;
+			return this.ajax( {
+				action: &#39;wbgetentities&#39;,
+				props: &#39;labels&#39;,
+				languages: lang,
+				ids: itemIds
+			} ).then( function ( data ) {
+				var map = {};
+				$.each( itemIds, function ( i, itemId ) {
+					if ( data.entities[ itemId ].labels &amp;&amp;
+						data.entities[ itemId ].labels[ lang ] !== undefined
+					) {
+						map[ itemId ] = data.entities[ itemId ].labels[ lang ].value;
+					} else {
+						map[ itemId ] = null;
+					}
+				} );
+				return map;
+			} );
+		},
+
+<span id='WikiDataApi-method-saveDescription'>		/**
+</span>		 * Store description.
+		 *
+		 * @param {String} value of new description
+		 * @return {jQuery.Deferred} Object returned by ajax call
+		 */
+		saveDescription: function ( value ) {
+			var self = this,
+				d = $.Deferred();
+
+			this.getInfo().done( function ( info ) {
+				self.postWithToken( &#39;csrf&#39;, {
+						action: &#39;wbsetdescription&#39;,
+						id: self.subjectId,
+						value: value,
+						summary: &#39;MobileFrontend Infobox alpha edit&#39;,
+						language: self.language,
+						baserevid: info.lastrevid,
+						bot: 1
+				} ).done( function ( resp ) {
+					d.resolve( resp );
+				} ).fail( $.proxy( d, &#39;reject&#39; ) );
+			} );
+			return d;
+		},
+
+<span id='WikiDataApi-method-saveClaim'>		/**
+</span>		 * Save a claim to the current item associated with the api.
+		 * @param {String} property id of the property claim you want to update
+		 * @param {String} value of claim you want to save including the Q prefix e.g. Q1
+		 * @returns {jQuery.Deferred}
+		 */
+		saveClaim: function ( property, value ) {
+			var self = this,
+				d = $.Deferred();
+
+			self.postWithToken( &#39;csrf&#39;, {
+					action: &#39;wbcreateclaim&#39;,
+					entity: self.subjectId,
+					snaktype: &#39;value&#39;,
+					property: property,
+					value: JSON.stringify( {
+						&#39;entity-type&#39;: &#39;item&#39;,
+						// FIXME: yuk.
+						&#39;numeric-id&#39;: value.replace( &#39;Q&#39;, &#39;&#39; )
+					} ),
+					summary: &#39;MobileFrontend Infobox alpha edit&#39;
+			} ).done( function ( resp ) {
+				d.resolve( resp );
+			} ).fail( $.proxy( d, &#39;reject&#39; ) );
+			return d;
+		},
+
+<span id='WikiDataApi-method-searchForItem'>		/**
+</span>		 * Search for a wikidata item that matches the current term
+		 * @param {String} term
+		 * @returns {jQuery.Deferred}
+		 */
+		searchForItem: function ( term ) {
+			return this.get( {
+				action: &#39;wbsearchentities&#39;,
+				search: term,
+				language: this.language,
+				type: &#39;item&#39;
+			} ).then( function ( data ) {
+				return data.search;
+			} );
+		},
+
+<span id='WikiDataApi-method-getInfo'>		/**
+</span>		 * Get information about current wikidata entity.
+		 */
+		getInfo: function () {
+			var id = this.subjectId;
+			return this.get( {
+				action: &#39;wbgetentities&#39;,
+				ids: id,
+				props: &#39;info&#39;
+			} ).then( function ( resp ) {
+				return resp.entities[id];
+			} );
+		},
+<span id='WikiDataApi-method-getExpandedItemsData'>		/**
+</span>		 * Expand item ids to find associated data such as labels and urls
+		 * for the wikidata entities for the current sitename.
+		 * @method
+		 * @param {Array} itemIds for items in Wikidata
+		 * @return {jQuery.Deferred} Object returned by ajax call
+		 */
+		getExpandedItemsData: function ( itemIds ) {
+			var lang = this.language,
+				wiki = mw.config.get( &#39;wgDBname&#39; ) || &#39;enwiki&#39;;
+
+			return this.ajax( {
+				action: &#39;wbgetentities&#39;,
+				sites: wiki,
+				props: [ &#39;labels&#39;, &#39;sitelinks/urls&#39;, &#39;datatype&#39; ],
+				languages: lang,
+				ids: itemIds
+			} ).then( function ( data ) {
+				var map = {};
+
+				$.each( itemIds, function ( i, itemId ) {
+					var item, sitelink;
+
+					if ( data.entities[ itemId ].labels &amp;&amp;
+						data.entities[ itemId ].labels[ lang ] !== undefined
+					) {
+						item = data.entities[ itemId ];
+						if ( item.sitelinks &amp;&amp; item.sitelinks[wiki] ) {
+							sitelink = item.sitelinks[wiki];
+						}
+
+						map[ itemId ] = {
+							id: itemId,
+							type: item.datatype,
+							label: sitelink ? sitelink.title : item.labels[ lang ].value
+						};
+
+						if ( sitelink &amp;&amp; sitelink.url ) {
+							map[ itemId ].url = sitelink.url;
+						}
+					} else {
+						map[ itemId ] = null;
+					}
+				} );
+				return map;
+			} );
+		}
+	} );
+
+	M.define( &#39;modules/wikigrok/WikiDataApi&#39;, WikiDataApi );
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

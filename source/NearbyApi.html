@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M, $ ) {
+
+	var Api, NearbyApi,
+		endpoint = mw.config.get( &#39;wgMFNearbyEndpoint&#39; ),
+		limit = 50,
+		ns = mw.config.get( &#39;wgMFContentNamespace&#39; );
+
+	if ( endpoint ) {
+		Api = M.require( &#39;modules/ForeignApi&#39; );
+	} else {
+		Api = M.require( &#39;api&#39; ).Api;
+	}
+
+<span id='global-method-calculateDistance'>	/**
+</span>	 * FIXME: Api should surely know this and return it in response to save us the hassle
+	 * FIXME: Add some tests :)
+	 * Apply the Haversine formula ( https://en.wikipedia.org/wiki/Haversine_formula ) and calculate the distance
+	 * between two points as the crow flies.
+	 * @method
+	 * @ignore
+	 * @param {Object} from with latitude and longitude keys
+	 * @param {Object} to with latitude and longitude keys
+	 * @return {Number} distance in kilometers
+	 */
+	function calculateDistance( from, to ) {
+		var distance, a,
+			toRadians = Math.PI / 180,
+			deltaLat, deltaLng,
+			startLat, endLat,
+			haversinLat, haversinLng,
+			radius = 6378; // radius of Earth in km
+
+		if ( from.latitude === to.latitude &amp;&amp; from.longitude === to.longitude ) {
+			distance = 0;
+		} else {
+			deltaLat = ( to.longitude - from.longitude ) * toRadians;
+			deltaLng = ( to.latitude - from.latitude ) * toRadians;
+			startLat = from.latitude * toRadians;
+			endLat = to.latitude * toRadians;
+
+			haversinLat = Math.sin( deltaLat / 2 ) * Math.sin( deltaLat / 2 );
+			haversinLng = Math.sin( deltaLng / 2 ) * Math.sin( deltaLng / 2 );
+
+			a = haversinLat + Math.cos( startLat ) * Math.cos( endLat ) * haversinLng;
+			return 2 * radius * Math.asin( Math.sqrt( a ) );
+		}
+		return distance;
+	}
+
+<span id='NearbyApi'>	/**
+</span>	 * API for retrieving nearby pages
+	 * @class NearbyApi
+	 * @extends Api
+	 */
+	NearbyApi = Api.extend( {
+		apiUrl: endpoint || Api.prototype.apiUrl,
+<span id='NearbyApi-method-_distanceMessage'>		/**
+</span>		 * Returns a human readable string stating the distance in meters or kilometers
+		 * depending on size.
+		 * @method
+		 * @private
+		 * @param {Number} d The distance in meters.
+		 * @return {String} message stating how far the user is from the point of interest.
+		 */
+		_distanceMessage: function ( d ) {
+			var msg = &#39;mobile-frontend-nearby-distance&#39;;
+			if ( d &lt; 1 ) {
+				d *= 100;
+				d = Math.ceil( d ) * 10;
+				if ( d === 1000 ) {
+					d = 1;
+				} else {
+					msg = &#39;mobile-frontend-nearby-distance-meters&#39;;
+				}
+			} else {
+				if ( d &gt; 2 ) {
+					d *= 10;
+					d = Math.ceil( d ) / 10;
+					d = d.toFixed( 1 );
+				} else {
+					d *= 100;
+					d = Math.ceil( d ) / 100;
+					d = d.toFixed( 2 );
+				}
+			}
+			return mw.msg( msg, mw.language.convertNumber( d ) );
+		},
+<span id='NearbyApi-method-getPages'>		/**
+</span>		 * Returns a list of pages around a given point
+		 * @method
+		 * @param {Object} coords In form { latitude: 0, longitude: 2 }
+		 * @param {Number} range Number of meters to perform a geosearch for
+		 * @param {String} exclude Name of a title to exclude from the list of results
+		 * @return {jQuery.Deferred} Object taking list of pages as argument
+		 */
+		getPages: function ( coords, range, exclude ) {
+			return this._search( {
+				ggscoord: [ coords.latitude, coords.longitude ]
+			}, range, exclude );
+		},
+
+<span id='NearbyApi-method-getPagesAroundPage'>		/**
+</span>		 * Gets the pages around a page. It excludes itself from the search
+		 * @method
+		 * @param {String} page Page title like &quot;W_San_Francisco&quot;
+		 * @param {Number} range Number of meters to perform a geosearch for
+		 * @return {jQuery.Deferred} Object taking list of pages as argument
+		 */
+		getPagesAroundPage: function ( page, range ) {
+			return this._search( {
+				ggspage: page
+			}, range, page );
+		},
+
+<span id='NearbyApi-method-_search'>		/**
+</span>		 * Searches for pages nearby
+		 * @method
+		 * @private
+		 * @param {Object} params Parameters to use for searching
+		 * @param {Number} range Number of meters to perform a geosearch for
+		 * @param {String} exclude Name of a title to exclude from the list of results
+		 * @return {jQuery.Deferred} Object taking list of pages as argument
+		 */
+		_search: function ( params, range, exclude ) {
+			var loc, requestParams,
+				d = $.Deferred(),
+				self = this;
+
+			requestParams = {
+				action: &#39;query&#39;,
+				colimit: &#39;max&#39;,
+				prop: &#39;pageimages|coordinates&#39;,
+				pithumbsize: mw.config.get( &#39;wgMFThumbnailSizes&#39; ).small,
+				pilimit: limit,
+				generator: &#39;geosearch&#39;,
+				ggsradius: range,
+				ggsnamespace: ns,
+				ggslimit: limit
+			};
+			$.extend( requestParams, params );
+
+			this.ajax( requestParams ).then( function ( resp ) {
+				var pages;
+				// FIXME: API bug 48512
+				if ( !resp || resp.error ) {
+					return d.reject( resp );
+				} else if ( resp.query ) {
+					pages = resp.query.pages || {};
+				} else {
+					pages = {};
+				}
+
+				// FIXME: API returns object when array would make much sense
+				pages = $.map( pages, function ( i ) {
+					return i;
+				} );
+
+				// If we have coordinates then set them so that the results are sorted by
+				// distance
+				if ( params.ggscoord ) {
+					loc = {
+						latitude: params.ggscoord[0],
+						longitude: params.ggscoord[1]
+					};
+				}
+				// If we have no coords (searching for a page&#39;s nearby), find the
+				// page in the results and get its coords.
+				if ( params.ggspage ) {
+					$.each( pages, function ( i, page ) {
+						if ( params.ggspage === page.title ) {
+							loc = {
+								latitude: page.coordinates[0].lat,
+								longitude: page.coordinates[0].lon
+							};
+						}
+					} );
+				}
+
+				// Process the pages
+				pages = $.map( pages, function ( page, i ) {
+					var coords, lngLat, thumb;
+
+					if ( page.thumbnail ) {
+						thumb = page.thumbnail;
+						page.listThumbStyleAttribute = &#39;background-image: url(&#39; + thumb.source + &#39;)&#39;;
+						page.pageimageClass = thumb.width &gt; thumb.height ? &#39;list-thumb-y&#39; : &#39;list-thumb-x&#39;;
+					} else {
+						page.pageimageClass = &#39;list-thumb-none list-thumb-x&#39;;
+					}
+					page.anchor = &#39;item_&#39; + i;
+					page.url = mw.util.getUrl( page.title );
+					if ( page.coordinates &amp;&amp; loc ) { // FIXME: protect against bug 47133 (remove when resolved)
+						coords = page.coordinates[0];
+						lngLat = {
+							latitude: coords.lat,
+							longitude: coords.lon
+						};
+						page.dist = calculateDistance( loc, lngLat );
+						page.latitude = coords.lat;
+						page.longitude = coords.lon;
+						page.proximity = self._distanceMessage( page.dist );
+					} else {
+						page.dist = 0;
+					}
+					page.id = page.pageid;
+					page.heading = page.title;
+					if ( exclude !== page.title ) {
+						return page;
+					}
+				} );
+
+				pages.sort( function ( a, b ) {
+					return a.dist &gt; b.dist ? 1 : -1;
+				} );
+				d.resolve( pages );
+			} );
+
+			return d;
+		}
+
+	} );
+
+	M.define( &#39;modules/nearby/NearbyApi&#39;, NearbyApi );
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

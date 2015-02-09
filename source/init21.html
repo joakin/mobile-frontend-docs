@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// jscs:disable requireCamelCaseOrUpperCaseIdentifiers
+/* This code currently handles two different editing tutorials/CTAs:
+
+EditTutorial - When an editor registers via the edit page action, upon returning to the
+page, show a blue guider prompting them to continue editing. You can replicate this by
+appending article_action=signup-edit to the URL of an editable page whilst logged in.
+
+LeftNavEditTutorial - When an editor registers via the left navigation menu, upon
+returning to the page, show a blue tutorial in 50% of cases prompting them to try
+editing. You can replicate this by appending campaign=leftNavSignup to the URL of an
+editable page whilst logged in, although you must be in test group A to see the CTA.
+*/
+( function ( M, $ ) {
+	var PageActionOverlay = M.require( &#39;modules/tutorials/PageActionOverlay&#39; ),
+		util = M.require( &#39;util&#39; ),
+		escapeHash = util.escapeHash,
+		query = util.query,
+		inEditor = window.location.hash.indexOf( &#39;#editor/&#39; ) &gt; -1,
+		hash = window.location.hash,
+		editOverlay, target, $target, href;
+
+<span id='global-method-shouldShowLeftNavEditTutorial'>	/**
+</span>	 * Whether or not the user should see the leftNav guider
+	 * @ignore
+	 * @returns {Boolean}
+	 */
+	function shouldShowLeftNavEditTutorial() {
+		return query.campaign === &#39;leftNavSignup&#39; &amp;&amp;
+			mw.config.get( &#39;wgNamespaceNumber&#39; ) === 0 &amp;&amp; !inEditor;
+	}
+
+<span id='global-method-shouldShowTutorial'>	/**
+</span>	 * If the user came from an edit button signup, show guider.
+	 * @ignore
+	 * @returns {Boolean}
+	 */
+	function shouldShowTutorial() {
+		var shouldShowEditTutorial = query.article_action === &#39;signup-edit&#39; &amp;&amp; !inEditor;
+		return shouldShowEditTutorial || shouldShowLeftNavEditTutorial();
+	}
+
+	if ( hash &amp;&amp; hash.indexOf( &#39;/&#39; ) === -1 ) {
+		target = escapeHash( hash ) + &#39; ~ .edit-page&#39;;
+	} else {
+		target = &#39;#ca-edit .edit-page&#39;;
+	}
+
+	// Note the element might have a new ID if the wikitext was changed so check it exists
+	if ( $( target ).length &gt; 0 &amp;&amp; shouldShowTutorial() ) {
+
+		if ( shouldShowLeftNavEditTutorial() ) {
+			// Append the funnel name to the edit link&#39;s url
+			$target = $( target );
+			href = $target.attr( &#39;href&#39; );
+			$target.attr( &#39;href&#39;, href + &#39;/leftNavSignup&#39; );
+		}
+
+		editOverlay = new PageActionOverlay( {
+			target: target,
+			className: &#39;slide active editing&#39;,
+			summary: mw.msg( &#39;mobile-frontend-editor-tutorial-summary&#39;, mw.config.get( &#39;wgTitle&#39; ) ),
+			confirmMsg: mw.msg( &#39;mobile-frontend-editor-tutorial-confirm&#39; ),
+			cancelMsg: mw.msg( &#39;mobile-frontend-editor-tutorial-cancel&#39; )
+		} );
+		editOverlay.show();
+		$( &#39;#ca-edit&#39; ).on( &#39;mousedown&#39;, $.proxy( editOverlay, &#39;hide&#39; ) );
+		// Initialize the &#39;Start editing&#39; button
+		editOverlay.$( &#39;.actionable&#39; ).on( &#39;click&#39;, function () {
+			// Hide the tutorial
+			editOverlay.hide();
+			// Load the editing interface by changing the URL hash
+			window.location.href = $( target ).attr( &#39;href&#39; );
+		} );
+	}
+
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

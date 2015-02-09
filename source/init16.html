@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// Flatten red links in JavaScript
+( function ( M, $ ) {
+	if ( !mw.config.get( &#39;wgMFShowRedLinks&#39; ) ) {
+		$( function () {
+			$( &#39;#content a.new&#39; ).each( function () {
+				$( this ).replaceWith(
+					$( &#39;&lt;span class=&quot;new&quot;&gt;&lt;/span&gt;&#39; ).append( $( this ).contents() )
+				);
+			} );
+		} );
+	}
+}( mw.mobileFrontend, jQuery ) );
+</pre>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+
+	var context = M.require( &#39;context&#39; ),
+		Overlay = M.require( &#39;Overlay&#39; ),
+		Icon = M.require( &#39;Icon&#39; ),
+		LeadPhotoUploaderButton = M.require( &#39;modules/uploads/PhotoUploaderButton&#39; ),
+		buttonMsg = mw.msg( &#39;mobile-frontend-first-upload-wizard-new-page-3-ok&#39; ),
+		UploadTutorial;
+
+<span id='UploadTutorial'>	/**
+</span>	 * Overlay for displaying upload tutorial
+	 * @class UploadTutorial
+	 * @extends Overlay
+	 * @uses Icon
+	 * @uses LeadPhotoUploaderButton
+	 */
+	UploadTutorial = Overlay.extend( {
+		template: mw.template.get( &#39;mobile.uploads&#39;, &#39;UploadTutorial.hogan&#39; ),
+		className: &#39;overlay carousel tutorial content-overlay&#39;,
+
+<span id='UploadTutorial-property-events'>		/** @inheritdoc */
+</span>		events: {
+			&#39;click .prev&#39;: &#39;onPreviousClick&#39;,
+			&#39;click .next&#39;: &#39;onNextClick&#39;,
+			&#39;click .button&#39;: &#39;onClickUploadButton&#39;
+		},
+<span id='UploadTutorial-cfg-defaults'>		/**
+</span>		 * @inheritdoc
+		 * @cfg {Object} defaults Default options hash.
+		 * @cfg {String} defaults.slideLeftButton HTML of the slide left button.
+		 * @cfg {String} defaults.slideRightButton HTML of the slide right button.
+		 * @cfg {Boolean} defaults.inBeta Whether the user is a beta group member.
+		 * @cfg {Array} defaults.pages Array of {Object}s that will be used as options to
+		 * create pages. Defaults to the following pages:
+		 *  * Informative statement about where images come from.
+		 *  * Guidance on avoiding copyright materials shown to first time users on
+		 *    [[Special:Uploads]].
+		 *  * Question asking user if they understood the tutorial.
+		 */
+		defaults: {
+			slideLeftButton: new Icon( {
+				name: &#39;previous&#39;
+			} ).toHtmlString(),
+			slideRightButton: new Icon( {
+				name: &#39;next&#39;
+			} ).toHtmlString(),
+			inBeta: context.isBetaGroupMember(),
+			pages: [
+				{
+					caption: mw.msg( &#39;mobile-frontend-first-upload-wizard-new-page-1-header&#39; ),
+					text: mw.msg( &#39;mobile-frontend-first-upload-wizard-new-page-1&#39; )
+				},
+				{
+					caption: mw.msg( &#39;mobile-frontend-first-upload-wizard-new-page-2-header&#39; ),
+					text: mw.msg( &#39;mobile-frontend-first-upload-wizard-new-page-2&#39; )
+				},
+				{
+					caption: mw.msg( &#39;mobile-frontend-first-upload-wizard-new-page-3-header&#39; ),
+					button: buttonMsg
+				}
+			]
+		},
+
+<span id='UploadTutorial-method-postRender'>		/** @inheritdoc */
+</span>		postRender: function ( options ) {
+			var $button = this.$( &#39;.button&#39; ),
+				photoUploaderButton;
+
+			if ( options.funnel ) {
+				photoUploaderButton = new LeadPhotoUploaderButton( {
+					el: $button,
+					buttonCaption: buttonMsg,
+					funnel: options.funnel
+				} );
+			}
+
+			this.page = 0;
+			this.totalPages = options.pages.length;
+			this._showCurrentPage();
+			Overlay.prototype.postRender.apply( this, arguments );
+		},
+
+<span id='UploadTutorial-method-_showCurrentPage'>		/**
+</span>		 * Show current page inside the upload tutorial
+		 * @method
+		 * @private
+		 */
+		_showCurrentPage: function () {
+			this.$( &#39;.slide&#39; ).removeClass( &#39;active&#39; ).eq( this.page ).addClass( &#39;active&#39; );
+			this.$( &#39;.prev&#39; ).toggle( this.page &gt; 0 );
+			this.$( &#39;.next&#39; ).toggle( this.page &lt; this.totalPages - 1 );
+		},
+
+<span id='UploadTutorial-method-onClickUploadButton'>		/**
+</span>		 * Event that is fired when clicking the final button at the end of the tutorial.
+		 * @method
+		 */
+		onClickUploadButton: function () {
+			this.emit( &#39;hide&#39; );
+			// FIXME: this is a hack. Not sure why this is needed but without it
+			// when escaping the upload interface you will still see it.
+			this.$el.hide();
+		},
+
+<span id='UploadTutorial-method-onNextClick'>		/**
+</span>		 * Show next page of the tutorial
+		 * @method
+		 */
+		onNextClick: function () {
+			this.page += 1;
+			this._showCurrentPage();
+		},
+
+<span id='UploadTutorial-method-onPreviousClick'>		/**
+</span>		 * Show previous page of the tutorial
+		 * @method
+		 */
+		onPreviousClick: function () {
+			this.page -= 1;
+			this._showCurrentPage();
+		}
+	} );
+
+	M.define( &#39;modules/uploads/UploadTutorial&#39;, UploadTutorial );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

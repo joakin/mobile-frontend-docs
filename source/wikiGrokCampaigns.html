@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+<span id='wikiGrokCampaigns'>	/**
+</span>	 * Gets campaigns, claims, and labels from mw.config
+	 * @class wikiGrokCampaigns
+	 * @singleton
+	 */
+	var wikiGrokCampaigns = {
+<span id='wikiGrokCampaigns-method-getRandomCampaign'>		/**
+</span>		 * Randomly pick a campaign for the current page
+		 * @method
+		 * @returns {Object|null} Object with campaign data. Includes these properties:
+		 *     name: Name of the campaign chosen, e.g. &#39;album&#39;
+		 *     property: Wikidata ID for the relevant property, e.g. &#39;P31&#39;
+		 *     questions: object with item IDs and labels for claim suggestions
+		 *     randomClaimId: Wikidata item ID of a randomly chosen suggestion
+		 */
+		getRandomCampaign: function () {
+			var campaignName,
+				campaigns = getCampaigns(),
+				campaign = null;
+
+			if ( campaigns ) {
+				campaignName = getRandomProperty( campaigns );
+				campaign = campaigns[campaignName];
+				campaign.name = campaignName;
+				campaign.randomClaimId = getRandomProperty( campaign.questions );
+
+				// Support legacy WikiGrok data. Remove this code once all WikiGrok
+				// articles have the new propertyId and propertyName properties.
+				// See https://gerrit.wikimedia.org/r/#/c/181208/
+				if ( campaign.propertyId === undefined ) {
+					campaign.propertyId = campaign.property;
+				}
+				if ( campaign.propertyName === undefined ) {
+					if (
+						campaign.name === &#39;author&#39; ||
+						campaign.name === &#39;actor&#39;
+					) {
+						campaign.propertyName = &#39;occupation&#39;;
+					} else if ( campaign.name === &#39;album&#39; ) {
+						campaign.propertyName = &#39;instance of&#39;;
+					}
+				}
+			}
+			return campaign;
+		},
+
+<span id='wikiGrokCampaigns-method-getAllSuggestions'>		/**
+</span>		 * Return suggestions (questions) from all available campaigns
+		 * @returns {Array} suggestion objects with id, label, and campaign properties
+		 */
+		getAllSuggestions: function () {
+			var campaigns = getCampaigns(),
+				campaignName,
+				questions = [];
+
+			for ( campaignName in campaigns ) {
+				if ( campaigns.hasOwnProperty( campaignName ) ) {
+					campaigns[campaignName].name = campaignName;
+					questions = questions.concat( getCampaignQuestions( campaigns[campaignName] ) );
+				}
+			}
+			return questions;
+		}
+	};
+
+<span id='global-method-getCampaigns'>	/**
+</span>	 * Get WikiGrok campaigns that are present on the page
+	 * This is a method rather than a variable because we need it in tests
+	 * @method
+	 * @ignore
+	 * @returns {Object|null} campaigns
+	 */
+	function getCampaigns() {
+		return mw.config.get( &#39;wgWikiGrokCampaigns&#39; );
+	}
+
+<span id='wikiGrokCampaigns-method-getCampaignQuestions'>	/**
+</span>	 * Return campaign questions in the desirable format
+	 * @param {Object} campaign
+	 * @returns {Array} question objects with id, label, and campaign properties
+	 */
+	function getCampaignQuestions( campaign ) {
+		var questionId,
+			questions = [];
+
+		for ( questionId in campaign.questions ) {
+			if ( campaign.questions.hasOwnProperty( questionId ) ) {
+				questions.push( {
+					id: questionId,
+					label: campaign.questions[questionId],
+					campaign: campaign
+				} );
+			}
+		}
+		return questions;
+	}
+
+<span id='global-method-getRandomProperty'>	/**
+</span>	 * Randomly pick a property
+	 * @method
+	 * @ignore
+	 * @param {Object} object
+	 * @returns {String} object&#39;s property
+	 */
+	function getRandomProperty( object ) {
+		var result,
+			property,
+			count = 0;
+
+		for ( property in object ) {
+			if ( object.hasOwnProperty( property ) ) {
+				if ( Math.random() &lt;= 1 / ++count ) {
+					result = property;
+				}
+			}
+		}
+		return result;
+	}
+
+	M.define( &#39;modules/wikigrok/wikiGrokCampaigns&#39;, wikiGrokCampaigns );
+
+} ( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>

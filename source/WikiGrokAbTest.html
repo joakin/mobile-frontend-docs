@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+
+	var Class = M.require( &#39;Class&#39; ),
+
+<span id='WikiGrokAbTest'>		/**
+</span>		 * Represents the WikiGrok A/B test.
+		 *
+		 * @class WikiGrokAbTest
+		 * @extends Class
+		 */
+		WikiGrokAbTest = Class.extend( {
+
+<span id='WikiGrokAbTest-method-initialize'>			/**
+</span>			 * Initialises a new instance of the WikiGrokAbTest class.
+			 * @method
+			 * @param {Boolean} isEnabled Whether or not the A/B test is enabled
+			 */
+			initialize: function ( isEnabled ) {
+				this.isEnabled = isEnabled;
+			},
+
+<span id='WikiGrokAbTest-method-getVersion'>			/**
+</span>			 * Gets the version of WikiGrok to show to the user.
+			 * @method
+			 * @param {Object} wikiGrokUser The WikiGrok user
+			 * @return {String} `&#39;A&#39;` or `&#39;B&#39;`
+			 */
+			getVersion: function ( wikiGrokUser ) {
+				var lastCharacter = wikiGrokUser.getToken().slice( -1 );
+
+				return lastCharacter &gt; &#39;U&#39; ? &#39;B&#39; : &#39;A&#39;;
+			}
+		} );
+
+<span id='WikiGrokAbTest-method-newFromMwConfig'>	/**
+</span>	 * Creates a new instance of the WikiGrokAbTest using `wgMFEnableWikiGrok` as
+	 * the `isEnabled` parameter.
+	 * @method
+	 * @return {WikiGrokAbTest}
+	 */
+	WikiGrokAbTest.newFromMwConfig = function () {
+		return new WikiGrokAbTest( mw.config.get( &#39;wgMFEnableWikiGrok&#39; ) );
+	};
+
+	M.define( &#39;WikiGrokAbTest&#39;, WikiGrokAbTest );
+
+}( mw.mobileFrontend, mw ) );
+</pre>
+</body>
+</html>

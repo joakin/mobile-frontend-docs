@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">( function ( M ) {
+	var loader,
+		LoadingOverlay = M.require( &#39;LoadingOverlay&#39; );
+
+<span id='loader'>	/**
+</span>	 * Utility library for looking up details on the current user
+	 * @class loader
+	 * @singleton
+	 */
+	loader = {
+<span id='loader-method-loadModule'>		/**
+</span>		 * Loads a module via ResourceLoader, displays a full screen LoadingOverlay during load time.
+		 * @method
+		 * @param {String} name ResourceLoader module name to load asynchronously.
+		 * @param {Boolean} delegateHide if true the caller is responsible for hiding the intermediate loader.
+		 * @return {jQuery.Deferred}
+		 */
+		loadModule: function ( name, delegateHide ) {
+			var loadingOverlay = new LoadingOverlay();
+			loadingOverlay.show();
+			return mw.loader.using( name ).then( function () {
+				return loadingOverlay;
+			} ).always( function () {
+				if ( !delegateHide ) {
+					loadingOverlay.hide();
+				}
+			} );
+		}
+	};
+	M.define( &#39;loader&#39;, loader );
+
+}( mw.mobileFrontend ) );
+</pre>
+</body>
+</html>
